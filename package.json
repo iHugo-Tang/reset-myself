@@ -12,14 +12,22 @@
 		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
 		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
 		"drizzle:generate": "drizzle-kit generate --config=drizzle.config.ts",
-		"drizzle:push": "wrangler d1 migrations apply reset_myself --remote"
+		"drizzle:migrate": "wrangler d1 migrations apply reset_myself --local",
+		"drizzle:migrate:remote": "wrangler d1 migrations apply reset_myself --remote",
+		"drizzle:push": "wrangler d1 migrations apply reset_myself --remote",
+		"drizzle:seed": "tsx scripts/seed.ts",
+		"drizzle:seed:remote": "tsx scripts/seed.ts --remote"
 	},
 	"dependencies": {
+		"@cloudflare/next-on-pages": "^1.13.16",
+		"@libsql/client": "^0.15.15",
 		"@opennextjs/cloudflare": "^1.14.2",
 		"drizzle-orm": "^0.38.4",
+		"drizzle-seed": "^0.3.1",
 		"next": "15.5.7",
 		"react": "19.1.2",
-		"react-dom": "19.1.2"
+		"react-dom": "19.1.2",
+		"strnum": "^1.0.5"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3",
@@ -27,11 +35,18 @@
 		"@types/node": "^20",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
+		"esbuild": "^0.24.0",
 		"drizzle-kit": "0.31.8",
 		"eslint": "^9",
 		"eslint-config-next": "15.4.6",
 		"tailwindcss": "^4",
+		"tsx": "^4.19.1",
 		"typescript": "^5",
 		"wrangler": "^4.53.0"
+	},
+	"pnpm": {
+		"overrides": {
+			"esbuild": "0.24.2"
+		}
 	}
 }

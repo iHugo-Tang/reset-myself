@@ -23,7 +23,8 @@
 			"binding": "reset_myself",
 			"database_name": "reset-myself",
 			"database_id": "8b7567f6-7f18-4ea9-acad-98869ccb902d",
-			"migrations_dir": "drizzle/migrations"
+			"migrations_dir": "drizzle/migrations",
+			// "remote": true,
 		}
 	]
 	/**
