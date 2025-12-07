@@ -17,7 +17,15 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "reset_myself",
+			"database_name": "reset-myself",
+			"database_id": "8b7567f6-7f18-4ea9-acad-98869ccb902d",
+			"migrations_dir": "drizzle/migrations"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
