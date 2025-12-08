@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { Flame } from 'lucide-react';
 import type { SVGProps } from 'react';
+import CheckinPanel from '@/app/timeline/CheckinPanel';
 import type { TimelineData, TimelineDay, TimelineItem } from '@/db/goals';
 
 export const dynamic = 'force-dynamic';
@@ -36,34 +37,38 @@ export const metadata: Metadata = {
 export default async function TimelinePage() {
 	const timeline = await fetchTimelineData();
 	const today = new Date().toISOString().slice(0, 10);
+	const todayData = timeline.days.find((day) => day.date === today);
 
 	return (
 		<div className="min-h-screen bg-[#0f1419] text-slate-100">
-			<div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
-				<header className="flex flex-col gap-2">
+			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:gap-8 lg:px-8">
+				<header className="flex flex-col gap-2 lg:gap-3">
 					<p className="text-xs uppercase tracking-[0.18em] text-slate-500/80">Timeline</p>
 					<h1 className="text-3xl font-semibold tracking-tight text-slate-50">打卡时间线</h1>
-					<p className="text-sm text-slate-400">
-						按日期查看所有目标的打卡情况，并可直接为每个目标完成当天打卡。
-					</p>
-					<div className="mt-3 flex flex-wrap items-center gap-3">
-						<StreakBadge streak={timeline.streak} />
-					</div>
 				</header>
 
-				{timeline.days.length === 0 ? (
-					<div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
-						暂无数据，请先创建目标并开始打卡。
+				<div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
+					<div className="space-y-4 lg:order-2 lg:col-span-1">
+						<StreakBadge streak={timeline.streak} />
+						{todayData ? <CheckinPanel day={todayData} today={today} /> : null}
 					</div>
-				) : (
-					<div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
-						<div className="divide-y divide-slate-900/70">
-							{timeline.days.map((day, idx) => (
-								<DayCard key={day.date} day={day} today={today} isFirst={idx === 0} />
-							))}
-						</div>
+
+					<div className="space-y-6 lg:order-1 lg:col-span-2">
+						{timeline.days.length === 0 ? (
+							<div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
+								暂无数据，请先创建目标并开始打卡。
+							</div>
+						) : (
+							<div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
+								<div className="divide-y divide-slate-900/70">
+									{timeline.days.map((day, idx) => (
+										<DayCard key={day.date} day={day} today={today} isFirst={idx === 0} />
+									))}
+								</div>
+							</div>
+						)}
 					</div>
-				)}
+				</div>
 			</div>
 		</div>
 	);
@@ -83,7 +88,7 @@ function StreakBadge({ streak }: { streak: number }) {
 
 	return (
 		<div
-			className={`inline-flex w-full max-w-xl items-center gap-4 rounded-2xl border px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] sm:w-auto ${containerClass}`}
+			className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] ${containerClass}`}
 			aria-live="polite"
 			title={isActive ? `已连续打卡 ${streak} 天` : '尚未开始连续打卡'}
 		>
@@ -104,9 +109,6 @@ function StreakBadge({ streak }: { streak: number }) {
 					{isActive ? '保持节奏，全部目标完成才算一天' : '完成今天所有目标即可开启连续打卡'}
 				</p>
 			</div>
-			<span className={`hidden items-center rounded-full px-2 py-1 text-[11px] font-semibold sm:inline-flex ${chipClass}`}>
-				{isActive ? '保持势头' : '开始第一天'}
-			</span>
 		</div>
 	);
 }
@@ -130,15 +132,6 @@ function DayCard({
 				<div className="space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<p className="text-lg font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
-						<span
-							className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-								allCompleted
-									? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/40'
-									: 'bg-amber-500/10 text-amber-200 ring-1 ring-amber-500/30'
-							}`}
-						>
-							{allCompleted ? '当天完成' : '未全部完成'}
-						</span>
 						{isToday && (
 							<span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-500/40">
 								今天
@@ -211,28 +204,6 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 					{isCompleted && <span className="absolute inset-0 rounded-full border border-emerald-500/40" aria-hidden />}
 				</div>
 			</div>
-
-			<form
-				action={`/api/goals/${item.goalId}/completion`}
-				method="post"
-				className="flex items-center justify-end"
-			>
-				<input type="hidden" name="count" value={1} />
-				<input type="hidden" name="date" value={today} />
-				<button
-					type="submit"
-					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
-						isCompleted
-							? 'cursor-not-allowed border border-slate-800 bg-slate-900 text-slate-500'
-							: 'border border-slate-700 bg-transparent text-slate-100 hover:border-slate-500 hover:bg-slate-800/80 active:border-slate-400 active:bg-slate-800'
-					}`}
-					disabled={isCompleted}
-					aria-disabled={isCompleted}
-					title={isCompleted ? '今日已达标' : '今天打卡'}
-				>
-					{isCompleted ? '已完成' : '今天打卡'}
-				</button>
-			</form>
 		</div>
 	);
 }

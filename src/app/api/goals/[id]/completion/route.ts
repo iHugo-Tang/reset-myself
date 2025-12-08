@@ -13,18 +13,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 	const date = (formData.get('date') || '').toString().trim();
 	const count = Number.isFinite(countRaw) && countRaw > 0 ? Math.floor(countRaw) : 1;
 	const targetDate = date || new Date().toISOString().slice(0, 10);
+	const wantsJson = request.headers.get('accept')?.includes('application/json');
 
 	const redirect = (suffix: string) => NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, request.url));
+	const json = (body: object, status = 200) => NextResponse.json(body, { status });
 
 	if (!goalId) {
-		return redirect('?error=missing_goal_id');
+		return wantsJson ? json({ ok: false, error: 'missing_goal_id' }, 400) : redirect('?error=missing_goal_id');
 	}
 
 	try {
 		await recordGoalCompletion(getEnv(), goalId, count, targetDate);
-		return redirect('');
+		return wantsJson ? json({ ok: true }) : redirect('');
 	} catch (error) {
 		console.error('POST /api/goals/[id]/completion error', error);
-		return redirect('?error=record_completion_failed');
+		return wantsJson ? json({ ok: false, error: 'record_completion_failed' }, 500) : redirect('?error=record_completion_failed');
 	}
 }
