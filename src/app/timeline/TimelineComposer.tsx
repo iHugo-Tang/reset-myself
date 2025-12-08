@@ -63,11 +63,11 @@ export default function TimelineComposer() {
 						maxLength={MAX_LEN}
 					/>
 					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-						<div className="text-[11px] text-slate-500">
+						<div className="text-sm text-slate-500">
 							<span className={remaining < 20 ? 'text-amber-300' : ''}>{remaining}</span> / {MAX_LEN}
 						</div>
 						<div className="flex items-center gap-3">
-							{error ? <span className="text-[11px] text-amber-300">{error}</span> : null}
+							{error ? <span className="text-sm text-amber-300">{error}</span> : null}
 							<button
 								type="button"
 								disabled={disabled}

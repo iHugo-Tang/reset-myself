@@ -127,7 +127,7 @@ export function GoalActionsMenu({ goal }: Props) {
 					<div className="mb-3 flex items-center justify-between gap-3">
 						<div className="flex items-center gap-2 text-sm text-slate-600">
 							<span>编辑目标</span>
-							<span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500 ring-1 ring-slate-200">
+							<span className="rounded-full bg-white px-2 py-0.5 text-sm text-slate-500 ring-1 ring-slate-200">
 								ID {goal.id}
 							</span>
 						</div>

@@ -58,7 +58,7 @@ export function NoteActions({ noteId }: Props) {
 					>
 						{loading ? '删除中…' : '删除'}
 					</button>
-					{error ? <p className="px-3 pb-2 text-[11px] text-amber-300">{error}</p> : null}
+					{error ? <p className="px-3 pb-2 text-sm text-amber-300">{error}</p> : null}
 				</div>
 			</details>
 		</div>

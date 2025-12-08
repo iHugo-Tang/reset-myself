@@ -251,7 +251,7 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 				<p className="text-sm font-semibold text-slate-100">
 					最近 {Math.ceil(HEATMAP_DAYS / 7)} 周热力图
 				</p>
-				<span className="text-[11px] text-slate-500">颜色表示当天完成次数</span>
+				<span className="text-sm text-slate-500">颜色表示当天完成次数</span>
 			</div>
 
 			<div className="mt-4 overflow-visible pb-1">
