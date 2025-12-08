@@ -140,9 +140,6 @@ function StreakBadge({ streak }: { streak: number }) {
 	const containerClass = isActive
 		? 'border-amber-500/40 bg-[#1e1a11] text-amber-100'
 		: 'border-slate-800 bg-[#11161c] text-slate-200';
-	const chipClass = isActive
-		? 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/40'
-		: 'bg-slate-800 text-slate-300 ring-1 ring-slate-700/80';
 	const circleClass = isActive
 		? 'text-amber-200 ring-amber-500/30 bg-[#2a2110]'
 		: 'text-slate-400 ring-slate-800 bg-[#0b1017]';
@@ -308,7 +305,6 @@ function DayCard({
 	isFirst: boolean;
 	timeZone: string;
 }) {
-	const finishedCount = day.items.filter((item) => item.count > 0).length;
 	const isToday = day.date === today;
 	const allCompleted = day.allGoalsCompleted;
 
@@ -343,7 +339,7 @@ function DayCard({
 						event.type === 'note' ? (
 							<NoteCard key={`note-${event.id}`} note={event} timeZone={timeZone} />
 						) : (
-							<GoalsEventCard key="goals" items={event.items} today={today} />
+							<GoalsEventCard key="goals" items={event.items} />
 						),
 					)
 				)}
@@ -352,7 +348,7 @@ function DayCard({
 	);
 }
 
-function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string }) {
+function GoalsEventCard({ items }: { items: TimelineItem[] }) {
 	if (!items.length) {
 		return (
 			<div className="rounded-2xl border border-slate-900/80 bg-[#0f1722] px-4 py-3 text-base text-slate-400">
@@ -364,7 +360,7 @@ function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string
 	return (
 		<div className="space-y-2.5">
 			{items.map((item) => (
-				<GoalRow key={item.goalId} item={item} today={today} />
+				<GoalRow key={item.goalId} item={item} />
 			))}
 		</div>
 	);
@@ -386,7 +382,7 @@ function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: strin
 	);
 }
 
-function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
+function GoalRow({ item }: { item: TimelineItem }) {
 	const ratio = item.count / Math.max(1, item.target);
 	const isCompleted = ratio >= 1;
 	const completionPercent = Math.min(100, Math.round(Math.min(1, ratio) * 100));
