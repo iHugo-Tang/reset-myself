@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic';
 const getBaseUrl = async () => {
 	const h = await headers();
 	const host = h.get('x-forwarded-host') ?? h.get('host');
-	const protocol = h.get('x-forwarded-proto') ?? 'https';
+	const protocol =
+		h.get('x-forwarded-proto') ??
+		(host?.includes('localhost') || host?.includes('127.0.0.1') ? 'http' : 'https');
 	return host ? `${protocol}://${host}` : '';
 };
 
@@ -119,6 +121,7 @@ function CreateGoalForm() {
 
 function GoalCard({ goal }: { goal: GoalWithStats }) {
 	const completionRate = goal.heatmap.filter((day) => day.count > 0).length;
+	const today = new Date().toISOString().slice(0, 10);
 
 	return (
 		<div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -160,11 +163,11 @@ function GoalCard({ goal }: { goal: GoalWithStats }) {
 								name="count"
 								min={1}
 								defaultValue={1}
-								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
+								className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
 							/>
 							<button
 								type="submit"
-								className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+								className="whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
 							>
 								记录
 							</button>
@@ -172,6 +175,7 @@ function GoalCard({ goal }: { goal: GoalWithStats }) {
 						<input
 							type="date"
 							name="date"
+							defaultValue={today}
 							className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
 						/>
 					</div>
@@ -190,11 +194,11 @@ function GoalCard({ goal }: { goal: GoalWithStats }) {
 								name="dailyTargetCount"
 								min={1}
 								defaultValue={goal.dailyTargetCount}
-								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
+								className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
 							/>
 							<button
 								type="submit"
-								className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+								className="whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
 							>
 								保存
 							</button>
@@ -231,7 +235,7 @@ function Heatmap({ heatmap }: { heatmap: HeatmapDay[] }) {
 					<div
 						key={day.date}
 						className={`h-3 w-3 rounded-[4px] ${color}`}
-						title={`${day.date} - ${day.count}/${day.target}`}
+						title={`${day.date} | 完成 ${day.count} 次 / 目标 ${day.target} 次`}
 					/>
 				);
 			})}

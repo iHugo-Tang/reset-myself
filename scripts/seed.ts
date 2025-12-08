@@ -28,7 +28,7 @@ const generateCount = (offset: number) => {
 };
 
 const buildSeedSql = () => {
-	const lines: string[] = ['BEGIN TRANSACTION;'];
+	const lines: string[] = [];
 
 	for (const goal of GOALS) {
 		const title = escapeSql(goal.title);
@@ -54,7 +54,6 @@ ON CONFLICT(goal_id, date) DO UPDATE SET count = excluded.count;`,
 		}
 	}
 
-	lines.push('COMMIT;');
 	return lines.join('\n');
 };
 

@@ -11,5 +11,6 @@ export const getDb = (env: EnvWithD1) => {
 		return drizzle(env.reset_myself, { schema });
 	}
 
+	console.error('[getDb] D1 binding missing. Available env keys:', Object.keys(env));
 	throw new Error('Database configuration missing: set D1 binding');
 };

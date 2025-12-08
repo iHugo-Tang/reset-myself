@@ -1,8 +1,9 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateGoalTarget } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 
-const getEnv = () => process.env as unknown as EnvWithD1;
+const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
