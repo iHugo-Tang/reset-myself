@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
+import Link from 'next/link';
+import Image from 'next/image';
 import { Flame, StickyNote } from 'lucide-react';
 import type { SVGProps } from 'react';
 import CheckinPanel from '@/app/timeline/CheckinPanel';
@@ -53,8 +55,8 @@ const fetchTimelineData = async (offsetMinutes: number): Promise<TimelineData> =
 };
 
 export const metadata: Metadata = {
-	title: 'Timeline | Reset Goals',
-	description: '目标打卡时间线',
+	title: 'Timeline | Reset Myself',
+	description: 'Reset Myself 目标打卡时间线',
 };
 
 export default async function TimelinePage() {
@@ -71,9 +73,35 @@ export default async function TimelinePage() {
 	return (
 		<div className="min-h-screen bg-[#0f1419] text-slate-100">
 			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:gap-8 lg:px-8">
-				<header className="flex flex-col gap-2 lg:gap-3">
-					<p className="text-xs uppercase tracking-[0.18em] text-slate-500/80">Timeline</p>
-					<h1 className="text-3xl font-semibold tracking-tight text-slate-50">打卡时间线</h1>
+				<header className="flex items-center justify-between rounded-3xl border border-slate-900/70 bg-linear-to-r from-[#0c121a] via-[#0f1724] to-[#0c121a] p-4 shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
+					<div className="flex items-center gap-3">
+						<div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b1017] shadow-inner ring-1 ring-slate-900/70">
+							<Image
+								src="/logo.png"
+								alt="Reset Myself 标志"
+								width={56}
+								height={56}
+								className="h-full w-full object-cover"
+								priority
+							/>
+						</div>
+						<div className="space-y-1">
+							<p className="text-sm font-semibold text-slate-100">RESET MYSELF</p>
+							<p className="text-xs text-slate-500">保持节奏，专注当下</p>
+						</div>
+					</div>
+					<div className="flex items-center gap-3">
+						<div className="flex items-center gap-2 rounded-2xl bg-slate-900/60 px-3 py-2 text-xs text-slate-300 ring-1 ring-slate-800">
+							<span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.08)] ring-2 ring-emerald-500/40" aria-hidden />
+							<span>实时刷新</span>
+						</div>
+						<Link
+							href="/admin/dashboard"
+							className="rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900"
+						>
+							Dashboard
+						</Link>
+					</div>
 				</header>
 
 				<div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
