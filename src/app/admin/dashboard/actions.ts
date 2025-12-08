@@ -8,7 +8,7 @@ import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
 
 const getEnv = () => getRequestContext().env as unknown as EnvWithD1;
-const getTimeSettings = () => resolveRequestTimeSettings({ cookies: cookies() });
+const getTimeSettings = async () => resolveRequestTimeSettings({ cookies: await cookies() });
 
 export const createGoalAction = async (formData: FormData): Promise<void> => {
 	const title = (formData.get('title') || '').toString().trim();
@@ -48,7 +48,7 @@ export const recordCompletionAction = async (formData: FormData): Promise<void> 
 	const goalId = Number(formData.get('goalId'));
 	const countRaw = Number(formData.get('count') ?? 1);
 	const date = (formData.get('date') || '').toString().trim();
-	const time = getTimeSettings();
+	const time = await getTimeSettings();
 
 	if (!goalId) return;
 
