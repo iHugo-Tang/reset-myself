@@ -25,12 +25,6 @@
 			"database_id": "8b7567f6-7f18-4ea9-acad-98869ccb902d",
 			"migrations_dir": "drizzle/migrations",
 		}
-	],
-	"routes": [
-		{
-			"pattern": "reset-myself.hugo.cc/*",
-			"zone_name": "hugo.cc"
-		}
 	]
 	/**
 	 * Smart Placement
