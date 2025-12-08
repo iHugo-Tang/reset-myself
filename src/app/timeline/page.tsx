@@ -38,28 +38,30 @@ export default async function TimelinePage() {
 	const today = new Date().toISOString().slice(0, 10);
 
 	return (
-		<div className="min-h-screen bg-slate-50 text-slate-900">
-			<div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-10">
+		<div className="min-h-screen bg-[#0f1419] text-slate-100">
+			<div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6">
 				<header className="flex flex-col gap-2">
-					<p className="text-sm uppercase tracking-[0.2em] text-slate-500">Timeline</p>
-					<h1 className="text-3xl font-semibold tracking-tight text-slate-900">打卡时间线</h1>
-					<p className="text-sm text-slate-600">
+					<p className="text-xs uppercase tracking-[0.18em] text-slate-500/80">Timeline</p>
+					<h1 className="text-3xl font-semibold tracking-tight text-slate-50">打卡时间线</h1>
+					<p className="text-sm text-slate-400">
 						按日期查看所有目标的打卡情况，并可直接为每个目标完成当天打卡。
 					</p>
-					<div className="mt-2 flex flex-wrap items-center gap-3">
+					<div className="mt-3 flex flex-wrap items-center gap-3">
 						<StreakBadge streak={timeline.streak} />
 					</div>
 				</header>
 
 				{timeline.days.length === 0 ? (
-					<div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">
+					<div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
 						暂无数据，请先创建目标并开始打卡。
 					</div>
 				) : (
-					<div className="grid gap-4">
-						{timeline.days.map((day) => (
-							<DayCard key={day.date} day={day} today={today} />
-						))}
+					<div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
+						<div className="divide-y divide-slate-900/70">
+							{timeline.days.map((day, idx) => (
+								<DayCard key={day.date} day={day} today={today} isFirst={idx === 0} />
+							))}
+						</div>
 					</div>
 				)}
 			</div>
@@ -70,35 +72,35 @@ export default async function TimelinePage() {
 function StreakBadge({ streak }: { streak: number }) {
 	const isActive = streak > 0;
 	const containerClass = isActive
-		? 'border-amber-100 bg-amber-50 text-amber-800'
-		: 'border-slate-200 bg-white text-slate-700';
+		? 'border-amber-500/40 bg-[#1e1a11] text-amber-100'
+		: 'border-slate-800 bg-[#11161c] text-slate-200';
 	const chipClass = isActive
-		? 'bg-amber-100 text-amber-800'
-		: 'bg-slate-100 text-slate-600';
+		? 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-500/40'
+		: 'bg-slate-800 text-slate-300 ring-1 ring-slate-700/80';
 	const circleClass = isActive
-		? 'text-amber-700 ring-amber-100'
-		: 'text-slate-500 ring-slate-200';
+		? 'text-amber-200 ring-amber-500/30 bg-[#2a2110]'
+		: 'text-slate-400 ring-slate-800 bg-[#0b1017]';
 
 	return (
 		<div
-			className={`inline-flex w-full max-w-xl items-center gap-4 rounded-xl border px-4 py-3 shadow-sm sm:w-auto ${containerClass}`}
+			className={`inline-flex w-full max-w-xl items-center gap-4 rounded-2xl border px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] sm:w-auto ${containerClass}`}
 			aria-live="polite"
 			title={isActive ? `已连续打卡 ${streak} 天` : '尚未开始连续打卡'}
 		>
 			<div
-				className={`flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-inner ring-1 ${circleClass}`}
+				className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner ring-1 ${circleClass}`}
 				aria-hidden
 			>
 				<Flame className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`} />
 			</div>
 			<div className="space-y-0.5">
-				<p className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+				<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
 					连续打卡
 				</p>
-				<p className="text-sm font-semibold">
+				<p className="text-sm font-semibold text-slate-50">
 					{isActive ? `当前 ${streak} 天` : '还没有连续纪录'}
 				</p>
-				<p className="text-[11px] text-current/80">
+				<p className="text-[11px] text-slate-400">
 					{isActive ? '保持节奏，全部目标完成才算一天' : '完成今天所有目标即可开启连续打卡'}
 				</p>
 			</div>
@@ -109,26 +111,36 @@ function StreakBadge({ streak }: { streak: number }) {
 	);
 }
 
-function DayCard({ day, today }: { day: TimelineDay; today: string }) {
+function DayCard({
+	day,
+	today,
+	isFirst,
+}: {
+	day: TimelineDay;
+	today: string;
+	isFirst: boolean;
+}) {
 	const finishedCount = day.items.filter((item) => item.count > 0).length;
 	const isToday = day.date === today;
 	const allCompleted = day.allGoalsCompleted;
 
 	return (
-		<section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-			<div className="flex items-center justify-between gap-3">
+		<section className={`space-y-3 ${isFirst ? 'pt-6' : 'pt-6'}`}>
+			<div className="flex items-start justify-between gap-3 px-4 sm:px-5">
 				<div className="space-y-1">
-					<div className="flex items-center gap-2">
-						<p className="text-lg font-semibold text-slate-900">{formatDateLabel(day.date)}</p>
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="text-lg font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
 						<span
-							className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-								allCompleted ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+							className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+								allCompleted
+									? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/40'
+									: 'bg-amber-500/10 text-amber-200 ring-1 ring-amber-500/30'
 							}`}
 						>
 							{allCompleted ? '当天完成' : '未全部完成'}
 						</span>
 						{isToday && (
-							<span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+							<span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-500/40">
 								今天
 							</span>
 						)}
@@ -137,19 +149,17 @@ function DayCard({ day, today }: { day: TimelineDay; today: string }) {
 						{finishedCount} / {day.items.length} 个目标有打卡
 					</p>
 					<p
-						className={`text-[11px] font-medium ${
-							allCompleted ? 'text-emerald-700' : 'text-amber-700'
-						}`}
+						className={`text-[11px] font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
 					>
 						{allCompleted ? '当天全部目标已达标，计入连续打卡' : '尚有目标未完成，不计入连续打卡'}
 					</p>
 				</div>
-				<span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+				<span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-slate-300 ring-1 ring-slate-800">
 					{day.items.length} 个目标
 				</span>
 			</div>
 
-			<div className="space-y-2">
+			<div className="space-y-2.5">
 				{day.items.map((item) => (
 					<GoalRow key={item.goalId} item={item} today={today} />
 				))}
@@ -162,55 +172,59 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 	const ratio = item.count / Math.max(1, item.target);
 	const isCompleted = ratio >= 1;
 	const completionPercent = Math.min(100, Math.round(Math.min(1, ratio) * 100));
-	const cardClass = isCompleted
-		? 'grid gap-3 rounded-xl border border-emerald-200 bg-linear-to-r from-emerald-50 via-white to-emerald-50 p-3 shadow-[0_10px_30px_rgba(16,185,129,0.12)] md:grid-cols-[1fr_auto] md:items-center'
-		: 'grid gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 md:grid-cols-[1fr_auto] md:items-center';
+	const initial = (item.title.trim()[0] ?? '?').toUpperCase();
+	const rowClass = isCompleted
+		? 'group relative flex gap-3 rounded-2xl border border-emerald-800/60 bg-[#0f1a16] px-4 py-3 shadow-[0_12px_50px_rgba(16,185,129,0.12)] transition hover:border-emerald-600/70 hover:bg-[#122019]'
+		: 'group relative flex gap-3 rounded-2xl border border-transparent bg-[#15202b] px-4 py-3 transition hover:border-slate-800 hover:bg-[#1c2733] active:bg-[#1e2d3c]';
 	const badgeClass = isCompleted
-		? 'bg-emerald-50 text-emerald-700'
-		: 'bg-slate-100 text-slate-600';
+		? 'bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-500/40'
+		: 'bg-slate-800 text-slate-300 ring-1 ring-slate-700/80';
 
 	return (
-		<div className={cardClass}>
-			<div className="space-y-2">
-				<div className="flex items-center gap-2">
-					<p className="text-sm font-semibold text-slate-900">{item.title}</p>
+		<div className={rowClass}>
+			<div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-[#0b1017] text-sm font-semibold text-slate-100">
+				{initial}
+			</div>
+			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
+				<div className="flex min-w-0 items-center gap-2">
+					<p className="truncate text-sm font-semibold text-slate-50">{item.title}</p>
 					<span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
 						{isCompleted && <CheckIcon className="h-3 w-3" />}
 						{isCompleted ? '已达标' : '未达标'}
 					</span>
 				</div>
-				<div className="flex items-center gap-2 text-[11px] text-slate-600">
-					<span className="font-medium text-slate-700">
+				<div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+					<span className="font-semibold text-slate-100">
 						{item.count} / {item.target} 次
 					</span>
-					<span className={isCompleted ? 'font-semibold text-emerald-700' : 'text-slate-500'}>
+					<span className={isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'}>
 						{completionPercent}% 完成
 					</span>
 				</div>
-				<div className="relative h-2 overflow-hidden rounded-full bg-slate-100">
+				<div className="relative h-1.5 overflow-hidden rounded-full bg-slate-800">
 					<div
 						className={`h-full transition-[width] duration-500 ${
-							isCompleted ? 'bg-linear-to-r from-emerald-500 to-emerald-400' : 'bg-emerald-300'
+							isCompleted ? 'bg-emerald-400' : 'bg-sky-400/80'
 						}`}
 						style={{ width: `${completionPercent}%` }}
 					/>
-					{isCompleted && <span className="absolute inset-0 rounded-full border border-emerald-200/70" aria-hidden />}
+					{isCompleted && <span className="absolute inset-0 rounded-full border border-emerald-500/40" aria-hidden />}
 				</div>
 			</div>
 
 			<form
 				action={`/api/goals/${item.goalId}/completion`}
 				method="post"
-				className="flex items-center justify-end gap-2"
+				className="flex items-center justify-end"
 			>
 				<input type="hidden" name="count" value={1} />
 				<input type="hidden" name="date" value={today} />
 				<button
 					type="submit"
-					className={`rounded-lg px-3 py-2 text-sm font-semibold shadow-sm transition ${
+					className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 ${
 						isCompleted
-							? 'cursor-not-allowed bg-slate-200 text-slate-500'
-							: 'bg-emerald-600 text-white hover:bg-emerald-700'
+							? 'cursor-not-allowed border border-slate-800 bg-slate-900 text-slate-500'
+							: 'border border-slate-700 bg-transparent text-slate-100 hover:border-slate-500 hover:bg-slate-800/80 active:border-slate-400 active:bg-slate-800'
 					}`}
 					disabled={isCompleted}
 					aria-disabled={isCompleted}
