@@ -45,3 +45,4 @@ next-env.d.ts
 !.env.example
 .pnpm-store/
 .env
+.env.development
