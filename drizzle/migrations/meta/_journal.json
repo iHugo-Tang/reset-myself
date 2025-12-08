@@ -22,6 +22,20 @@
       "when": 1765145306389,
       "tag": "0002_flimsy_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765200000000,
+      "tag": "0003_timeline_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1765210000000,
+      "tag": "0004_goal_icon_color",
+      "breakpoints": true
     }
   ]
 }

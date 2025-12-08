@@ -6,6 +6,8 @@ export const goals = sqliteTable('goals', {
   title: text('title').notNull(),
   description: text('description'),
   dailyTargetCount: integer('daily_target_count').notNull().default(1),
+  icon: text('icon').notNull().default('Target'),
+  color: text('color').notNull().default('#10b981'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -37,3 +39,15 @@ export type NewGoal = typeof goals.$inferInsert;
 
 export type GoalCompletion = typeof goalCompletions.$inferSelect;
 export type NewGoalCompletion = typeof goalCompletions.$inferInsert;
+
+export const timelineNotes = sqliteTable('timeline_notes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  content: text('content').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD (UTC)
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export type TimelineNote = typeof timelineNotes.$inferSelect;
+export type NewTimelineNote = typeof timelineNotes.$inferInsert;

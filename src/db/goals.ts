@@ -1,6 +1,13 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { getDb, type EnvWithD1 } from './client';
-import { goalCompletions, goals, type Goal, type GoalCompletion } from '../../drizzle/schema';
+import {
+	goalCompletions,
+	goals,
+	timelineNotes,
+	type Goal,
+	type GoalCompletion,
+	type TimelineNote,
+} from '../../drizzle/schema';
 
 export type HeatmapDay = {
 	date: string;
@@ -19,18 +26,36 @@ export type TimelineItem = {
 	title: string;
 	target: number;
 	count: number;
+	icon: string;
+	color: string;
 };
 
 export type TimelineDay = {
 	date: string;
 	items: TimelineItem[];
 	allGoalsCompleted: boolean;
+	events: TimelineEvent[];
 };
 
 export type TimelineData = {
 	days: TimelineDay[];
 	streak: number;
 };
+
+export type TimelineNoteEvent = {
+	type: 'note';
+	id: number;
+	content: string;
+	createdAt: string;
+};
+
+export type TimelineGoalEvent = {
+	type: 'goals';
+	items: TimelineItem[];
+	allGoalsCompleted: boolean;
+};
+
+export type TimelineEvent = TimelineNoteEvent | TimelineGoalEvent;
 
 const formatDate = (date: Date) => date.toISOString().slice(0, 10); // YYYY-MM-DD UTC
 
@@ -108,20 +133,19 @@ const computeTimelineStreak = (
 export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<TimelineData> => {
 	const db = getDb(env);
 	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
-
-	if (!goalRows.length) return { days: [], streak: 0 };
-
 	const goalIds = goalRows.map((g) => g.id);
+
 	const today = new Date();
 	today.setUTCHours(0, 0, 0, 0);
 	const todayKey = formatDate(today);
-	const endKey = todayKey;
 
-	const completions = await db
-		.select()
-		.from(goalCompletions)
-		.where(inArray(goalCompletions.goalId, goalIds))
-		.orderBy(goalCompletions.date);
+	const completions = goalIds.length
+		? await db
+				.select()
+				.from(goalCompletions)
+				.where(inArray(goalCompletions.goalId, goalIds))
+				.orderBy(goalCompletions.date)
+		: [];
 
 	const byDate = new Map<string, Map<number, number>>();
 	for (const completion of completions) {
@@ -138,6 +162,25 @@ export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<Timeli
 		dates.push(formatDate(cursor));
 	}
 
+	const notes =
+		(await db
+			.select()
+			.from(timelineNotes)
+			.where(inArray(timelineNotes.date, dates))
+			.orderBy(desc(timelineNotes.createdAt))) ?? [];
+
+	const notesByDate = new Map<string, TimelineNote[]>();
+	for (const note of notes) {
+		const list = notesByDate.get(note.date) ?? [];
+		list.push(note);
+		notesByDate.set(note.date, list);
+	}
+
+	const parseTs = (value: string, fallback: string) => {
+		const parsed = Date.parse(value);
+		return Number.isNaN(parsed) ? Date.parse(fallback) : parsed;
+	};
+
 	const daysData = dates
 		.map((date) => {
 			const dateMap = byDate.get(date) ?? new Map<number, number>();
@@ -147,22 +190,53 @@ export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<Timeli
 					title: goal.title,
 					target: goal.dailyTargetCount,
 					count: dateMap.get(goal.id) ?? 0,
+					icon: goal.icon,
+					color: goal.color,
 				}))
 				.filter((item) => date === todayKey || item.count > 0);
 
-			const allGoalsCompleted = goalRows.every(
-				(goal) => (dateMap.get(goal.id) ?? 0) >= goal.dailyTargetCount,
-			);
+			const dateNotes = notesByDate.get(date) ?? [];
+			const allGoalsCompleted =
+				goalRows.length > 0 &&
+				goalRows.every((goal) => (dateMap.get(goal.id) ?? 0) >= goal.dailyTargetCount);
+
+			const noteEvents: TimelineNoteEvent[] = dateNotes.map((note) => ({
+				type: 'note',
+				id: note.id,
+				content: note.content,
+				createdAt: note.createdAt,
+			}));
+
+			const events: TimelineEvent[] = [...noteEvents];
+			if (items.length > 0 || date === todayKey) {
+				events.push({
+					type: 'goals',
+					items,
+					allGoalsCompleted,
+				});
+			}
+
+			const sortedEvents = events
+				.map((event) => {
+					const ts =
+						event.type === 'note'
+							? parseTs(event.createdAt, `${date}T00:00:00Z`)
+							: Date.parse(`${date}T00:00:00Z`);
+					return { event, ts };
+				})
+				.sort((a, b) => b.ts - a.ts)
+				.map((item) => item.event);
 
 			return {
 				date,
 				items,
 				allGoalsCompleted,
+				events: sortedEvents,
 			};
 		})
-		.filter((day) => day.date === todayKey || day.items.length > 0);
+		.filter((day) => day.date === todayKey || day.items.length > 0 || day.events.some((e) => e.type === 'note'));
 
-	const streak = computeTimelineStreak(goalRows, byDate);
+	const streak = goalRows.length ? computeTimelineStreak(goalRows, byDate) : 0;
 
 	return { days: daysData, streak };
 };
@@ -200,7 +274,7 @@ export const getDashboardData = async (env: EnvWithD1, days = 90): Promise<GoalW
 
 export const createGoal = async (
 	env: EnvWithD1,
-	payload: { title: string; description?: string; dailyTargetCount: number },
+	payload: { title: string; description?: string; dailyTargetCount: number; icon?: string; color?: string },
 ) => {
 	const db = getDb(env);
 	const [inserted] = await db
@@ -209,6 +283,8 @@ export const createGoal = async (
 			title: payload.title,
 			description: payload.description ?? '',
 			dailyTargetCount: payload.dailyTargetCount,
+			icon: payload.icon?.trim() || 'Target',
+			color: payload.color?.trim() || '#10b981',
 		})
 		.returning();
 
@@ -224,6 +300,50 @@ export const updateGoalTarget = async (env: EnvWithD1, goalId: number, dailyTarg
 			updatedAt: new Date().toISOString(),
 		})
 		.where(eq(goals.id, goalId));
+};
+
+export const updateGoal = async (
+	env: EnvWithD1,
+	goalId: number,
+	payload: {
+		title?: string;
+		description?: string;
+		dailyTargetCount?: number;
+		icon?: string;
+		color?: string;
+	},
+) => {
+	const db = getDb(env);
+
+	const updates: Partial<typeof goals.$inferInsert> = {
+		updatedAt: new Date().toISOString(),
+	};
+
+	if (payload.title !== undefined) {
+		const title = payload.title.trim();
+		if (!title) throw new Error('title_required');
+		updates.title = title;
+	}
+
+	if (payload.description !== undefined) {
+		updates.description = payload.description.trim();
+	}
+
+	if (payload.dailyTargetCount !== undefined) {
+		const parsed = Number(payload.dailyTargetCount);
+		if (!Number.isFinite(parsed) || parsed <= 0) throw new Error('daily_target_invalid');
+		updates.dailyTargetCount = Math.floor(parsed);
+	}
+
+	if (payload.icon !== undefined) {
+		updates.icon = payload.icon.trim() || 'Target';
+	}
+
+	if (payload.color !== undefined) {
+		updates.color = payload.color.trim() || '#10b981';
+	}
+
+	await db.update(goals).set(updates).where(eq(goals.id, goalId));
 };
 
 export const recordGoalCompletion = async (
@@ -251,6 +371,29 @@ export const recordGoalCompletion = async (
 			count,
 		});
 	}
+};
+
+export const createTimelineNote = async (env: EnvWithD1, content: string, date?: string) => {
+	const db = getDb(env);
+	const trimmed = content.trim();
+	if (!trimmed) throw new Error('content_required');
+
+	const targetDate = date?.trim() || formatDate(new Date());
+	const [inserted] = await db
+		.insert(timelineNotes)
+		.values({
+			content: trimmed,
+			date: targetDate,
+		})
+		.returning();
+
+	return inserted;
+};
+
+export const deleteTimelineNote = async (env: EnvWithD1, noteId: number) => {
+	const db = getDb(env);
+	if (!noteId) throw new Error('note_id_required');
+	await db.delete(timelineNotes).where(eq(timelineNotes.id, noteId));
 };
 
 export const deleteGoal = async (env: EnvWithD1, goalId: number) => {

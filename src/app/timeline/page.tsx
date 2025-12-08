@@ -3,7 +3,15 @@ import { headers } from 'next/headers';
 import { Flame } from 'lucide-react';
 import type { SVGProps } from 'react';
 import CheckinPanel from '@/app/timeline/CheckinPanel';
-import type { TimelineData, TimelineDay, TimelineItem } from '@/db/goals';
+import TimelineComposer from '@/app/timeline/TimelineComposer';
+import { NoteActions } from '@/app/timeline/NoteActions';
+import type {
+	TimelineData,
+	TimelineDay,
+	TimelineItem,
+	TimelineNoteEvent,
+} from '@/db/goals';
+import { DEFAULT_COLOR, DEFAULT_ICON, ICON_MAP } from '@/app/admin/dashboard/iconOptions';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +62,7 @@ export default async function TimelinePage() {
 					</div>
 
 					<div className="space-y-6 lg:order-1 lg:col-span-2">
+						<TimelineComposer />
 						{timeline.days.length === 0 ? (
 							<div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
 								暂无数据，请先创建目标并开始打卡。
@@ -152,12 +161,54 @@ function DayCard({
 				</span>
 			</div>
 
-			<div className="space-y-2.5">
-				{day.items.map((item) => (
-					<GoalRow key={item.goalId} item={item} today={today} />
-				))}
+			<div className="space-y-3 px-4 pb-2 sm:px-5">
+				{day.events.length === 0 ? (
+					<p className="text-sm text-slate-500">暂无记录</p>
+				) : (
+					day.events.map((event) =>
+						event.type === 'note' ? (
+							<NoteCard key={`note-${event.id}`} note={event} />
+						) : (
+							<GoalsEventCard key="goals" items={event.items} today={today} />
+						),
+					)
+				)}
 			</div>
 		</section>
+	);
+}
+
+function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string }) {
+	if (!items.length) {
+		return (
+			<div className="rounded-2xl border border-slate-900/80 bg-[#0f1722] px-4 py-3 text-sm text-slate-400">
+				今日暂无目标记录
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-2.5">
+			{items.map((item) => (
+				<GoalRow key={item.goalId} item={item} today={today} />
+			))}
+		</div>
+	);
+}
+
+function NoteCard({ note }: { note: TimelineNoteEvent }) {
+	const timeLabel = formatTimeLabel(note.createdAt);
+	return (
+		<div className="relative flex gap-3 rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3 pr-12">
+			<div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-slate-200 ring-1 ring-slate-800">
+				记
+			</div>
+			<div className="flex min-w-0 flex-1 flex-col gap-2">
+				<p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{note.content}</p>
+				<span className="text-[11px] text-slate-500">{timeLabel}</span>
+			</div>
+			<NoteActions noteId={note.id} />
+		</div>
 	);
 }
 
@@ -165,7 +216,8 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 	const ratio = item.count / Math.max(1, item.target);
 	const isCompleted = ratio >= 1;
 	const completionPercent = Math.min(100, Math.round(Math.min(1, ratio) * 100));
-	const initial = (item.title.trim()[0] ?? '?').toUpperCase();
+	const Icon = ICON_MAP[item.icon] ?? ICON_MAP[DEFAULT_ICON];
+	const color = item.color || DEFAULT_COLOR;
 	const rowClass = isCompleted
 		? 'group relative flex gap-3 rounded-2xl border border-emerald-800/60 bg-[#0f1a16] px-4 py-3 shadow-[0_12px_50px_rgba(16,185,129,0.12)] transition hover:border-emerald-600/70 hover:bg-[#122019]'
 		: 'group relative flex gap-3 rounded-2xl border border-transparent bg-[#15202b] px-4 py-3 transition hover:border-slate-800 hover:bg-[#1c2733] active:bg-[#1e2d3c]';
@@ -175,8 +227,11 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 
 	return (
 		<div className={rowClass}>
-			<div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-[#0b1017] text-sm font-semibold text-slate-100">
-				{initial}
+			<div
+				className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-[#0b1017] text-sm font-semibold text-slate-100"
+				style={{ backgroundColor: `${color}22`, color, borderColor: `${color}55` }}
+			>
+				{Icon ? <Icon className="h-4 w-4" /> : (item.title.trim()[0] ?? '?').toUpperCase()}
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<div className="flex min-w-0 items-center gap-2">
@@ -214,6 +269,13 @@ const formatDateLabel = (date: string) => {
 	const d = new Date(`${date}T00:00:00Z`);
 	if (Number.isNaN(d.getTime())) return date;
 	return `${date} · ${weekday[d.getUTCDay()]}`;
+};
+
+const formatTimeLabel = (iso: string) => {
+	const ts = Date.parse(iso);
+	if (Number.isNaN(ts)) return iso;
+	const d = new Date(ts);
+	return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 };
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {
