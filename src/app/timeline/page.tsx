@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { Flame } from 'lucide-react';
+import { Flame, StickyNote } from 'lucide-react';
 import type { SVGProps } from 'react';
 import CheckinPanel from '@/app/timeline/CheckinPanel';
 import TimelineComposer from '@/app/timeline/TimelineComposer';
@@ -10,10 +10,12 @@ import type {
 	TimelineDay,
 	TimelineItem,
 	TimelineNoteEvent,
+	TimelineHeatmapDay,
 } from '@/db/goals';
 import { DEFAULT_COLOR, DEFAULT_ICON, ICON_MAP } from '@/app/admin/dashboard/iconOptions';
 
 export const dynamic = 'force-dynamic';
+const HEATMAP_DAYS = 105;
 
 const getBaseUrl = async () => {
 	const h = await headers();
@@ -28,12 +30,12 @@ const fetchTimelineData = async (): Promise<TimelineData> => {
 	try {
 		const baseUrl = await getBaseUrl();
 		const res = await fetch(`${baseUrl}/api/timeline`, { cache: 'no-store' });
-		if (!res.ok) return { days: [], streak: 0 };
+		if (!res.ok) return { days: [], streak: 0, heatmap: [] };
 		const json = (await res.json()) as { data?: TimelineData };
-		return json.data ?? { days: [], streak: 0 };
+		return json.data ?? { days: [], streak: 0, heatmap: [] };
 	} catch (error) {
 		console.error('fetchTimelineData error', error);
-		return { days: [], streak: 0 };
+		return { days: [], streak: 0, heatmap: [] };
 	}
 };
 
@@ -58,6 +60,7 @@ export default async function TimelinePage() {
 				<div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
 					<div className="space-y-4 lg:order-2 lg:col-span-1">
 						<StreakBadge streak={timeline.streak} />
+						<HeatmapCard heatmap={timeline.heatmap} />
 						{todayData ? <CheckinPanel day={todayData} today={today} /> : null}
 					</div>
 
@@ -122,6 +125,133 @@ function StreakBadge({ streak }: { streak: number }) {
 	);
 }
 
+const heatmapColors = ['#0b1017', '#123040', '#15516f', '#1c77a0', '#2bb4d9'];
+
+const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, days = HEATMAP_DAYS) => {
+	const byDate = new Map<string, number>();
+	for (const entry of heatmap ?? []) {
+		byDate.set(entry.date, entry.count);
+	}
+
+	// 以当前周的最后一天为结束，向前填充 days 天，保证当前周展示完整
+	const today = new Date();
+	today.setUTCHours(0, 0, 0, 0);
+	const weekdayIdx = today.getUTCDay(); // 0 = 周日
+	const endOfWeek = new Date(today);
+	endOfWeek.setUTCDate(today.getUTCDate() + (6 - weekdayIdx));
+
+	const start = new Date(endOfWeek);
+	start.setUTCDate(endOfWeek.getUTCDate() - (days - 1));
+
+	const filled: TimelineHeatmapDay[] = [];
+	for (let i = 0; i < days; i++) {
+		const cursor = new Date(start);
+		cursor.setUTCDate(start.getUTCDate() + i);
+		const dateKey = cursor.toISOString().slice(0, 10);
+		filled.push({ date: dateKey, count: byDate.get(dateKey) ?? 0 });
+	}
+	return filled;
+};
+
+function HeatmapCard({ heatmap }: { heatmap: TimelineHeatmapDay[] }) {
+	const data = normalizeHeatmap(heatmap);
+	const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
+
+	if (!(heatmap?.length ?? 0)) {
+		return (
+			<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
+				<div className="flex items-center justify-between">
+					<p className="text-sm font-semibold text-slate-100">最近 {HEATMAP_DAYS} 天热力图</p>
+					<span className="text-xs text-slate-500">暂无数据</span>
+				</div>
+				<p className="mt-2 text-xs text-slate-500">完成打卡后这里会出现热力图。</p>
+			</div>
+		);
+	}
+
+	const cells = data.map((entry) => {
+		const d = new Date(`${entry.date}T00:00:00Z`);
+		return { ...entry, weekday: d.getUTCDay(), dateObj: d };
+	});
+
+	const offset = cells[0]?.weekday ?? 0;
+	const padded: (typeof cells[number] | null)[] = [...Array(offset).fill(null), ...cells];
+	const remainder = padded.length % 7;
+	if (remainder !== 0) {
+		padded.push(...Array(7 - remainder).fill(null));
+	}
+
+	const columns: (typeof cells[number] | null)[][] = [];
+	for (let i = 0; i < padded.length; i += 7) {
+		columns.push(padded.slice(i, i + 7));
+	}
+
+	const getLevel = (count: number) => {
+		if (count <= 0 || maxCount <= 0) return 0;
+		const ratio = count / maxCount;
+		if (ratio >= 0.8) return 4;
+		if (ratio >= 0.6) return 3;
+		if (ratio >= 0.3) return 2;
+		return 1;
+	};
+
+	const formatTooltip = (cell: (typeof cells)[number]) => {
+		const weekLabel = weekday[cell.weekday];
+		return `${cell.date} · ${weekLabel}\n完成次数：${cell.count}`;
+	};
+
+	return (
+		<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
+			<div className="flex items-center justify-between gap-2">
+				<p className="text-sm font-semibold text-slate-100">
+					最近 {Math.ceil(HEATMAP_DAYS / 7)} 周热力图
+				</p>
+				<span className="text-[11px] text-slate-500">颜色表示当天完成次数</span>
+			</div>
+
+			<div className="mt-4 overflow-visible pb-1">
+				<div className="flex gap-1 overflow-visible">
+					{columns.map((col, colIdx) => (
+						<div key={`col-${colIdx}`} className="flex flex-col gap-1 overflow-visible">
+							{col.map((cell, rowIdx) => {
+								if (!cell) {
+									return (
+										<div
+											key={`empty-${colIdx}-${rowIdx}`}
+											className="h-[14px] w-[14px] rounded-[4px] bg-transparent"
+											aria-hidden
+										/>
+									);
+								}
+
+								const level = getLevel(cell.count);
+								const color = heatmapColors[level];
+								const borderColor = level === 0 ? '#1f2933' : '#265c74';
+
+								return (
+									<div key={cell.date} className="group relative overflow-visible">
+										<div
+											className="h-[14px] w-[14px] rounded-[4px] ring-1 ring-transparent transition"
+											style={{
+												backgroundColor: color,
+												boxShadow: `0 0 0 1px ${borderColor}`,
+											}}
+											role="presentation"
+										/>
+										<div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden -translate-x-1/2 -translate-y-[110%] whitespace-pre rounded-md bg-slate-950 px-2 py-1 text-[11px] text-slate-100 shadow-lg ring-1 ring-slate-800 group-hover:block">
+											{formatTooltip(cell)}
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function DayCard({
 	day,
 	today,
@@ -147,9 +277,6 @@ function DayCard({
 							</span>
 						)}
 					</div>
-					<p className="text-xs text-slate-500">
-						{finishedCount} / {day.items.length} 个目标有打卡
-					</p>
 					<p
 						className={`text-[11px] font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
 					>
@@ -201,7 +328,7 @@ function NoteCard({ note }: { note: TimelineNoteEvent }) {
 	return (
 		<div className="relative flex gap-3 rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3 pr-12">
 			<div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-slate-200 ring-1 ring-slate-800">
-				记
+				<StickyNote className="h-4 w-4" />
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-2">
 				<p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{note.content}</p>

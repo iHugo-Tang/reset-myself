@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { UserRound } from 'lucide-react';
 
 const MAX_LEN = 280;
 
@@ -50,7 +51,7 @@ export default function TimelineComposer() {
 		<section className="rounded-3xl border border-slate-900/70 bg-gradient-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-4 shadow-[0_18px_80px_rgba(0,0,0,0.45)] sm:p-5">
 			<div className="flex gap-3">
 				<div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-slate-200 ring-1 ring-slate-800">
-					你
+					<UserRound className="h-5 w-5" aria-hidden />
 				</div>
 				<div className="flex-1 space-y-3">
 					<textarea

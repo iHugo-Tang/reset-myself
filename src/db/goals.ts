@@ -37,9 +37,15 @@ export type TimelineDay = {
 	events: TimelineEvent[];
 };
 
+export type TimelineHeatmapDay = {
+	date: string;
+	count: number;
+};
+
 export type TimelineData = {
 	days: TimelineDay[];
 	streak: number;
+	heatmap: TimelineHeatmapDay[];
 };
 
 export type TimelineNoteEvent = {
@@ -130,7 +136,29 @@ const computeTimelineStreak = (
 	return streak;
 };
 
-export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<TimelineData> => {
+const buildTimelineHeatmap = (
+	byDate: Map<string, Map<number, number>>,
+	days: number,
+): TimelineHeatmapDay[] => {
+	const today = new Date();
+	today.setUTCHours(0, 0, 0, 0);
+	const start = new Date(today);
+	start.setUTCDate(today.getUTCDate() - (days - 1));
+
+	const heatmap: TimelineHeatmapDay[] = [];
+	for (let i = 0; i < days; i++) {
+		const cursor = new Date(start);
+		cursor.setUTCDate(start.getUTCDate() + i);
+		const dateKey = formatDate(cursor);
+		const dateMap = byDate.get(dateKey);
+		const totalCount = dateMap ? Array.from(dateMap.values()).reduce((sum, val) => sum + val, 0) : 0;
+		heatmap.push({ date: dateKey, count: totalCount });
+	}
+
+	return heatmap;
+};
+
+export const getTimelineData = async (env: EnvWithD1, days = 91): Promise<TimelineData> => {
 	const db = getDb(env);
 	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
 	const goalIds = goalRows.map((g) => g.id);
@@ -237,8 +265,9 @@ export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<Timeli
 		.filter((day) => day.date === todayKey || day.items.length > 0 || day.events.some((e) => e.type === 'note'));
 
 	const streak = goalRows.length ? computeTimelineStreak(goalRows, byDate) : 0;
+	const heatmap = buildTimelineHeatmap(byDate, days);
 
-	return { days: daysData, streak };
+	return { days: daysData, streak, heatmap };
 };
 
 export const getDashboardData = async (env: EnvWithD1, days = 90): Promise<GoalWithStats[]> => {
