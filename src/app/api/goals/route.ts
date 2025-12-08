@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 		return NextResponse.json({ success: true, data });
 	} catch (error) {
 		console.error('GET /api/goals error', error);
-		return NextResponse.json({ success: false, message: '获取目标失败' }, { status: 500 });
+		return NextResponse.json({ success: false, message: 'Failed to fetch goals' }, { status: 500 });
 	}
 }
 

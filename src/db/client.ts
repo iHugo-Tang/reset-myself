@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../../drizzle/schema';
 
 export type EnvWithD1 = {
-	reset_myself?: D1Database; // D1 绑定
+	reset_myself?: D1Database; // D1 binding
 };
 
 export const getDb = (env: EnvWithD1) => {

@@ -7,8 +7,8 @@ type GoalSeed = {
 };
 
 const GOALS: GoalSeed[] = [
-	{ title: '每日阅读', description: '阅读 30 分钟', dailyTargetCount: 1 },
-	{ title: '晨跑', description: '跑步或快走 2km', dailyTargetCount: 1 },
+	{ title: 'Daily Reading', description: 'Read for 30 minutes', dailyTargetCount: 1 },
+	{ title: 'Morning Run', description: 'Run or brisk walk 2km', dailyTargetCount: 1 },
 ];
 
 const DAYS = 30;
@@ -21,7 +21,7 @@ const escapeSql = (value: string) => value.replace(/'/g, "''");
 const formatDate = (date: Date) => date.toISOString().slice(0, 10); // YYYY-MM-DD UTC
 
 const generateCount = (offset: number) => {
-	// 提供稀疏/中等/高强度的演示数据
+	// Provide sparse, medium, and high-intensity demo data
 	if (offset % 6 === 0) return 0;
 	if (offset % 3 === 0) return 2;
 	return 1;

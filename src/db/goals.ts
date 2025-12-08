@@ -105,7 +105,7 @@ const computeStreak = (completions: GoalCompletion[], offsetMinutes: number): nu
 	let streak = 0;
 	let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
 
-	// 连续天数：从今天开始向前检查，直到遇到未完成的日期（以用户时区为日界）
+	// Streak days: walk backward from today until a day without completion (user time zone based)
 	while (true) {
 		const key = toDateKey(cursorUtc, offsetMinutes);
 		const count = completionDates.get(key) ?? 0;

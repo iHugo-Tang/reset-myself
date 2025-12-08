@@ -36,7 +36,7 @@ export function GoalActionsMenu({ goal }: Props) {
 	const IconPreview = useMemo(() => ICON_MAP[icon] ?? ICON_MAP[DEFAULT_ICON], [icon]);
 
 	const handleDelete = async () => {
-		const ok = window.confirm('确定删除该目标？此操作不可恢复。');
+		const ok = window.confirm('Delete this goal? This cannot be undone.');
 		if (!ok) return;
 
 		setMessage(null);
@@ -47,7 +47,7 @@ export function GoalActionsMenu({ goal }: Props) {
 			});
 			if (!res.ok) {
 				const json = (await res.json().catch(() => null)) as { message?: string } | null;
-				setMessage(json?.message ?? '删除失败');
+				setMessage(json?.message ?? 'Delete failed');
 				return;
 			}
 			router.refresh();
@@ -78,7 +78,7 @@ export function GoalActionsMenu({ goal }: Props) {
 
 			if (!res.ok) {
 				const json = (await res.json().catch(() => null)) as { message?: string } | null;
-				setMessage(json?.message ?? '保存失败');
+				setMessage(json?.message ?? 'Save failed');
 				return;
 			}
 
@@ -110,14 +110,14 @@ export function GoalActionsMenu({ goal }: Props) {
 						}}
 						className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
 					>
-						<span>修改</span>
+						<span>Edit</span>
 					</button>
 					<button
 						type="button"
 						onClick={handleDelete}
 						className="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 transition hover:bg-rose-50"
 					>
-						<span>删除</span>
+						<span>Delete</span>
 					</button>
 				</div>
 			) : null}
@@ -126,7 +126,7 @@ export function GoalActionsMenu({ goal }: Props) {
 				<div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
 					<div className="mb-3 flex items-center justify-between gap-3">
 						<div className="flex items-center gap-2 text-sm text-slate-600">
-							<span>编辑目标</span>
+							<span>Edit goal</span>
 							<span className="rounded-full bg-white px-2 py-0.5 text-sm text-slate-500 ring-1 ring-slate-200">
 								ID {goal.id}
 							</span>
@@ -143,7 +143,7 @@ export function GoalActionsMenu({ goal }: Props) {
 
 					<form className="grid gap-3" onSubmit={handleSubmit}>
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">目标名称</span>
+							<span className="text-xs font-medium text-slate-700">Goal name</span>
 							<input
 								value={title}
 								onChange={(e) => setTitle(e.target.value)}
@@ -153,7 +153,7 @@ export function GoalActionsMenu({ goal }: Props) {
 						</label>
 
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">描述</span>
+							<span className="text-xs font-medium text-slate-700">Description</span>
 							<textarea
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
@@ -162,7 +162,7 @@ export function GoalActionsMenu({ goal }: Props) {
 						</label>
 
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">每日目标次数</span>
+							<span className="text-xs font-medium text-slate-700">Daily target count</span>
 							<input
 								type="number"
 								min={1}
@@ -173,7 +173,7 @@ export function GoalActionsMenu({ goal }: Props) {
 						</label>
 
 						<div className="grid gap-2">
-							<span className="text-xs font-medium text-slate-700">选择图标</span>
+							<span className="text-xs font-medium text-slate-700">Choose an icon</span>
 							<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 								{ICON_OPTIONS.map((opt) => {
 									const Icon = opt.Icon;
@@ -204,7 +204,7 @@ export function GoalActionsMenu({ goal }: Props) {
 						</div>
 
 						<div className="grid gap-2">
-							<span className="text-xs font-medium text-slate-700">选择颜色</span>
+							<span className="text-xs font-medium text-slate-700">Choose a color</span>
 							<div className="flex flex-wrap gap-2">
 								{COLOR_OPTIONS.map((c) => {
 									const checked = c === color;
@@ -240,7 +240,7 @@ export function GoalActionsMenu({ goal }: Props) {
 								className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
 							>
 								{isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-								<span>保存修改</span>
+								<span>Save changes</span>
 							</button>
 							<button
 								type="button"
@@ -248,7 +248,7 @@ export function GoalActionsMenu({ goal }: Props) {
 								onClick={() => setEditing(false)}
 								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
 							>
-								取消
+								Cancel
 							</button>
 						</div>
 					</form>

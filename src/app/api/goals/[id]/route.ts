@@ -76,9 +76,9 @@ const handleUpdate = async (request: NextRequest, params: Promise<{ id: string }
 
 		const friendly =
 			message === 'title_required'
-				? '标题必填'
+				? 'Title is required'
 				: message === 'daily_target_invalid'
-					? '每日目标需为正整数'
+					? 'Daily target must be a positive integer'
 					: message;
 
 		return NextResponse.json({ success: false, message: friendly }, { status: 400 });

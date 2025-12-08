@@ -6,7 +6,7 @@ const MS_PER_DAY = 86_400_000;
 
 export type TimeSettings = {
 	timeZone: string;
-	offsetMinutes: number; // 正值表示东区（UTC+），负值表示西区
+	offsetMinutes: number; // Positive for east (UTC+), negative for west
 };
 
 const isValidTimeZone = (tz?: string | null): tz is string => {
@@ -90,7 +90,7 @@ export const formatDateInTimeZone = (input: Date | number | string, timeZone: st
 	}).format(date);
 };
 
-// 将 UTC 时间戳转换为用户本地日期键（YYYY-MM-DD）
+// Convert a UTC timestamp to the user's local date key (YYYY-MM-DD)
 export const toDateKey = (input: Date | number | string, offsetMinutes = DEFAULT_OFFSET_MINUTES): string => {
 	const date = typeof input === 'string' ? new Date(input) : new Date(input);
 	if (Number.isNaN(date.getTime())) return '';
@@ -109,7 +109,7 @@ export const buildDateKeys = (days: number, offsetMinutes = DEFAULT_OFFSET_MINUT
 	return keys;
 };
 
-// 返回本地当日 00:00 对应的 UTC 时间戳（毫秒）
+// Return the UTC timestamp (ms) for local day start (00:00)
 export const startOfDayUtcMs = (utcMs = Date.now(), offsetMinutes = DEFAULT_OFFSET_MINUTES): number => {
 	const localMs = utcMs + offsetMinutes * 60_000;
 	const localStart = Math.floor(localMs / MS_PER_DAY) * MS_PER_DAY;
@@ -118,7 +118,7 @@ export const startOfDayUtcMs = (utcMs = Date.now(), offsetMinutes = DEFAULT_OFFS
 
 export const addDaysUtc = (utcMs: number, days: number) => utcMs + days * MS_PER_DAY;
 
-export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = 'zh-CN') => {
+export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = 'en-US') => {
 	const tz = normalizeTimeZone(timeZone);
 	const date = new Date(`${dateKey}T00:00:00Z`);
 	try {
@@ -128,7 +128,7 @@ export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = '
 	}
 };
 
-export const formatTimeInTimeZone = (iso: string, timeZone: string, locale = 'zh-CN') => {
+export const formatTimeInTimeZone = (iso: string, timeZone: string, locale = 'en-US') => {
 	const tz = normalizeTimeZone(timeZone);
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return iso;

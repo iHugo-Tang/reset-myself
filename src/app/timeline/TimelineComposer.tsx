@@ -33,7 +33,7 @@ export default function TimelineComposer() {
 
 			if (!res.ok) {
 				const json = (await res.json().catch(() => null)) as { message?: string } | null;
-				setError(json?.message ?? '保存失败，请稍后重试');
+				setError(json?.message ?? 'Unable to save. Please try again soon.');
 				return;
 			}
 
@@ -41,14 +41,14 @@ export default function TimelineComposer() {
 			router.refresh();
 		} catch (err) {
 			console.error('timeline note submit error', err);
-			setError('请求异常，请稍后再试');
+			setError('Request error. Please try again soon.');
 		} finally {
 			setLoading(false);
 		}
 	};
 
 	return (
-		<section className="rounded-3xl border border-slate-900/70 bg-gradient-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-4 shadow-[0_18px_80px_rgba(0,0,0,0.45)] sm:p-5">
+		<section className="rounded-3xl border border-slate-900/70 bg-linear-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-4 shadow-[0_18px_80px_rgba(0,0,0,0.45)] sm:p-5">
 			<div className="flex gap-3">
 				<div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-slate-200 ring-1 ring-slate-800">
 					<UserRound className="h-5 w-5" aria-hidden />
@@ -57,9 +57,9 @@ export default function TimelineComposer() {
 					<textarea
 						value={value}
 						onChange={(e) => setValue(e.target.value.slice(0, MAX_LEN))}
-						placeholder="有什么想法、状态或灵感？"
+						placeholder="What's on your mind: thoughts, status, or inspiration?"
 						className="h-24 w-full resize-none rounded-2xl border border-slate-800 bg-[#0b1017] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-700/70"
-						aria-label="记录想法"
+						aria-label="Write your update"
 						maxLength={MAX_LEN}
 					/>
 					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -79,7 +79,7 @@ export default function TimelineComposer() {
 								}`}
 								aria-busy={loading}
 							>
-								{loading ? '发布中…' : '发布'}
+								{loading ? 'Posting...' : 'Post'}
 							</button>
 						</div>
 					</div>

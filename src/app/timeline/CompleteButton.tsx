@@ -49,14 +49,14 @@ export function CompleteButton({
 
 			if (!res.ok) {
 				const json = (await res.json().catch(() => null)) as { error?: string } | null;
-				setError(json?.error ? `失败：${json.error}` : '记录失败，请稍后重试');
+				setError(json?.error ? `Failed: ${json.error}` : 'Could not record. Please try again soon.');
 				return;
 			}
 
 			router.refresh();
 		} catch (err) {
 			console.error('complete goal error', err);
-			setError('请求异常，请稍后重试');
+			setError('Request error. Please try again soon.');
 		} finally {
 			setLoading(false);
 		}
@@ -65,10 +65,10 @@ export function CompleteButton({
 	const disabled = isCompleted || loading;
 
 	const buttonText = isCompleted
-		? labels?.completed ?? '已完成'
+		? labels?.completed ?? 'Done'
 		: loading
-			? labels?.loading ?? '处理中…'
-			: labels?.idle ?? '今天打卡';
+			? labels?.loading ?? 'Working...'
+			: labels?.idle ?? 'Check in today';
 
 	const baseClass =
 		'font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500';
@@ -89,7 +89,7 @@ export function CompleteButton({
 				disabled={disabled}
 				aria-disabled={disabled}
 				aria-busy={loading}
-				title={isCompleted ? '今日已达标' : '今天打卡'}
+				title={isCompleted ? 'Goal met today' : 'Check in today'}
 			>
 				{buttonText}
 			</button>

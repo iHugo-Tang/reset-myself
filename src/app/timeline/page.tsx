@@ -56,7 +56,7 @@ const fetchTimelineData = async (offsetMinutes: number): Promise<TimelineData> =
 
 export const metadata: Metadata = {
 	title: 'Timeline | Reset Myself',
-	description: 'Reset Myself 目标打卡时间线',
+	description: 'Reset Myself goal check-in timeline',
 };
 
 export default async function TimelinePage() {
@@ -78,7 +78,7 @@ export default async function TimelinePage() {
 						<div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b1017] shadow-inner ring-1 ring-slate-900/70">
 							<Image
 								src="/logo.png"
-								alt="Reset Myself 标志"
+								alt="Reset Myself logo"
 								width={56}
 								height={56}
 								className="h-full w-full object-cover"
@@ -87,7 +87,7 @@ export default async function TimelinePage() {
 						</div>
 						<div className="space-y-1">
 							<p className="text-base font-semibold text-slate-100">RESET MYSELF</p>
-							<p className="text-sm text-slate-500">保持节奏，专注当下</p>
+							<p className="text-sm text-slate-500">Stay on rhythm, focus on today</p>
 						</div>
 					</div>
 					<div className="flex items-center gap-3">
@@ -111,7 +111,7 @@ export default async function TimelinePage() {
 						<TimelineComposer />
 						{timeline.days.length === 0 ? (
 							<div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
-								暂无数据，请先创建目标并开始打卡。
+								No data yet; create a goal and start checking in.
 							</div>
 						) : (
 							<div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
@@ -151,7 +151,7 @@ function StreakBadge({ streak }: { streak: number }) {
 		<div
 			className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] ${containerClass}`}
 			aria-live="polite"
-			title={isActive ? `已连续打卡 ${streak} 天` : '尚未开始连续打卡'}
+			title={isActive ? `On a ${streak}-day streak` : 'Streak not started yet'}
 		>
 			<div
 				className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner ring-1 ${circleClass}`}
@@ -161,13 +161,13 @@ function StreakBadge({ streak }: { streak: number }) {
 			</div>
 			<div className="space-y-0.5">
 				<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-					连续打卡
+					Daily streak
 				</p>
 				<p className="text-sm font-semibold text-slate-50">
-					{isActive ? `当前 ${streak} 天` : '还没有连续纪录'}
+					{isActive ? `Current streak: ${streak} days` : 'No streak yet'}
 				</p>
 				<p className="text-xs text-slate-400">
-					{isActive ? '保持节奏，全部目标完成才算一天' : '完成今天所有目标即可开启连续打卡'}
+					{isActive ? 'Keep the rhythm: complete all goals to count the day' : 'Finish all goals today to start your streak'}
 				</p>
 			</div>
 		</div>
@@ -182,10 +182,10 @@ const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, offsetMinut
 		byDate.set(entry.date, entry.count);
 	}
 
-	// 以当前周的最后一天为结束，向前填充 days 天，保证当前周展示完整
+	// Use the last day of the current week as the end, backfill `days` days to show a full week
 	const todayUtcStart = startOfDayUtcMs(Date.now(), offsetMinutes);
 	const todayKey = toDateKey(todayUtcStart, offsetMinutes);
-	const weekdayIdx = weekDayIndex(todayKey); // 0 = 周日
+	const weekdayIdx = weekDayIndex(todayKey); // 0 = Sunday
 	const endOfWeekUtc = addDaysUtc(todayUtcStart, 6 - weekdayIdx);
 	const startUtc = addDaysUtc(endOfWeekUtc, -(days - 1));
 
@@ -206,10 +206,10 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 		return (
 			<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
 				<div className="flex items-center justify-between">
-					<p className="text-sm font-semibold text-slate-100">最近 {HEATMAP_DAYS} 天热力图</p>
-					<span className="text-xs text-slate-500">暂无数据</span>
+					<p className="text-sm font-semibold text-slate-100">Heatmap for the last {HEATMAP_DAYS} days</p>
+					<span className="text-xs text-slate-500">No data yet</span>
 				</div>
-				<p className="mt-2 text-xs text-slate-500">完成打卡后这里会出现热力图。</p>
+				<p className="mt-2 text-xs text-slate-500">Log check-ins to see them here.</p>
 			</div>
 		);
 	}
@@ -242,16 +242,16 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 
 	const formatTooltip = (cell: (typeof cells)[number]) => {
 		const weekLabel = weekday[cell.weekday];
-		return `${cell.date} · ${weekLabel}\n完成次数：${cell.count}`;
+		return `${cell.date} · ${weekLabel}\nCompletions: ${cell.count}`;
 	};
 
 	return (
 		<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
 			<div className="flex items-center justify-between gap-2">
 				<p className="text-sm font-semibold text-slate-100">
-					最近 {Math.ceil(HEATMAP_DAYS / 7)} 周热力图
+					Heatmap for the last {Math.ceil(HEATMAP_DAYS / 7)} weeks
 				</p>
-				<span className="text-sm text-slate-500">颜色表示当天完成次数</span>
+				<span className="text-sm text-slate-500">Color shows completions for the day</span>
 			</div>
 
 			<div className="mt-4 overflow-visible pb-1">
@@ -320,24 +320,24 @@ function DayCard({
 						<p className="text-xl font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
 						{isToday && (
 							<span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-sm font-semibold text-sky-200 ring-1 ring-sky-500/40">
-								今天
+								Today
 							</span>
 						)}
 					</div>
 					<p
 						className={`text-sm font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
 					>
-						{allCompleted ? '当天全部目标已达标，计入连续打卡' : '尚有目标未完成，不计入连续打卡'}
+						{allCompleted ? 'All goals met; counted toward streak' : 'Goals remaining; does not count toward streak'}
 					</p>
 				</div>
 				<span className="rounded-full bg-slate-900 px-3.5 py-1 text-sm font-medium text-slate-300 ring-1 ring-slate-800">
-					{day.items.length} 个目标
+					{day.items.length} goals
 				</span>
 			</div>
 
 			<div className="space-y-3 px-4 pb-2 sm:px-5">
 				{day.events.length === 0 ? (
-					<p className="text-base text-slate-500">暂无记录</p>
+					<p className="text-base text-slate-500">No entries yet</p>
 				) : (
 					day.events.map((event) =>
 						event.type === 'note' ? (
@@ -356,7 +356,7 @@ function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string
 	if (!items.length) {
 		return (
 			<div className="rounded-2xl border border-slate-900/80 bg-[#0f1722] px-4 py-3 text-base text-slate-400">
-				今日暂无目标记录
+				No goal records for today
 			</div>
 		);
 	}
@@ -412,15 +412,15 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 					<p className="truncate text-base font-semibold text-slate-50">{item.title}</p>
 					<span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium ${badgeClass}`}>
 						{isCompleted && <CheckIcon className="h-3 w-3" />}
-						{isCompleted ? '已达标' : '未达标'}
+						{isCompleted ? 'Goal met' : 'Not met'}
 					</span>
 				</div>
 				<div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
 					<span className="text-base font-semibold text-slate-100">
-						{item.count} / {item.target} 次
+						{item.count} / {item.target} times
 					</span>
 					<span className={isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'}>
-						{completionPercent}% 完成
+						{completionPercent}% complete
 					</span>
 				</div>
 				<div className="relative h-1.5 overflow-hidden rounded-full bg-slate-800">
@@ -437,7 +437,7 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 	);
 }
 
-const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const formatDateLabel = (date: string) => {
 	const d = new Date(`${date}T00:00:00Z`);
@@ -446,7 +446,7 @@ const formatDateLabel = (date: string) => {
 };
 
 const formatTimeLabel = (iso: string, timeZone: string) => {
-	return formatTimeInTimeZone(iso, timeZone, 'zh-CN');
+	return formatTimeInTimeZone(iso, timeZone, 'en-US');
 };
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {

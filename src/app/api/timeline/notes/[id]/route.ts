@@ -10,7 +10,7 @@ const handleDelete = async (request: NextRequest, params: Promise<{ id: string }
 	const noteId = Number(id);
 
 	if (!noteId) {
-		return NextResponse.json({ success: false, message: '缺少记录 ID' }, { status: 400 });
+		return NextResponse.json({ success: false, message: 'Missing note ID' }, { status: 400 });
 	}
 
 	try {
@@ -18,7 +18,7 @@ const handleDelete = async (request: NextRequest, params: Promise<{ id: string }
 		return NextResponse.json({ success: true });
 	} catch (error) {
 		console.error('DELETE /api/timeline/notes/[id] error', error);
-		return NextResponse.json({ success: false, message: '删除失败，请稍后再试' }, { status: 500 });
+		return NextResponse.json({ success: false, message: 'Delete failed. Please try again soon.' }, { status: 500 });
 	}
 };
 

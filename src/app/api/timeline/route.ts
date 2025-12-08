@@ -23,6 +23,6 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({ success: true, data });
 	} catch (error) {
 		console.error('GET /api/timeline error', error);
-		return NextResponse.json({ success: false, message: '获取时间线失败' }, { status: 500 });
+		return NextResponse.json({ success: false, message: 'Failed to fetch timeline' }, { status: 500 });
 	}
 }

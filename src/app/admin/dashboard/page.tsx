@@ -34,7 +34,7 @@ const fetchDashboardData = async (offsetMinutes: number, cookieHeader: string): 
 
 export const metadata: Metadata = {
 	title: 'Admin | Reset Goals',
-	description: '目标管理仪表盘',
+	description: 'Goal management dashboard',
 };
 
 export default async function AdminDashboardPage() {
@@ -50,9 +50,9 @@ export default async function AdminDashboardPage() {
 			<div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10">
 				<header className="flex flex-col gap-2">
 					<p className="text-sm uppercase tracking-[0.2em] text-slate-500">Admin</p>
-					<h1 className="text-3xl font-semibold tracking-tight text-slate-900">目标仪表盘</h1>
+					<h1 className="text-3xl font-semibold tracking-tight text-slate-900">Goal dashboard</h1>
 					<p className="text-sm text-slate-600">
-						查看目标、连续完成天数与热力图，并直接在此创建或更新每日目标。
+						View goals, streaks, and heatmaps, plus create or update daily targets here.
 					</p>
 				</header>
 
@@ -60,13 +60,13 @@ export default async function AdminDashboardPage() {
 
 				<section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 					<div className="flex items-center justify-between gap-4">
-						<h2 className="text-lg font-semibold text-slate-900">目标列表</h2>
-						<span className="text-sm text-slate-500">最近 90 天的热力图</span>
+						<h2 className="text-lg font-semibold text-slate-900">Goal list</h2>
+						<span className="text-sm text-slate-500">Heatmap for the last 90 days</span>
 					</div>
 
 					{goals.length === 0 ? (
 						<div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
-							暂无目标，请先创建一个目标。
+							No goals yet; create one to get started.
 						</div>
 					) : (
 						<div className="grid gap-4 md:grid-cols-2">
@@ -84,21 +84,21 @@ export default async function AdminDashboardPage() {
 function CreateGoalForm() {
 	return (
 		<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-			<h2 className="text-lg font-semibold text-slate-900">新建目标</h2>
-			<p className="mt-1 text-sm text-slate-600">填写名称、描述与每日完成次数。</p>
+			<h2 className="text-lg font-semibold text-slate-900">Create a goal</h2>
+			<p className="mt-1 text-sm text-slate-600">Add the name, description, and daily target count.</p>
 			<form action="/api/goals" method="post" className="mt-4 grid gap-4 md:grid-cols-2">
 				<label className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-slate-700">目标名称</span>
+					<span className="text-sm font-medium text-slate-700">Goal name</span>
 					<input
 						required
 						name="title"
-						placeholder="例如：每日阅读"
+						placeholder="e.g., Daily reading"
 						className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
 					/>
 				</label>
 
 				<label className="flex flex-col gap-2">
-					<span className="text-sm font-medium text-slate-700">每日完成次数</span>
+					<span className="text-sm font-medium text-slate-700">Daily target count</span>
 					<input
 						type="number"
 						min={1}
@@ -109,16 +109,16 @@ function CreateGoalForm() {
 				</label>
 
 				<label className="md:col-span-2 flex flex-col gap-2">
-					<span className="text-sm font-medium text-slate-700">描述（可选）</span>
+					<span className="text-sm font-medium text-slate-700">Description (optional)</span>
 					<textarea
 						name="description"
-						placeholder="补充说明或备注"
+						placeholder="Add notes or context"
 						className="min-h-[96px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
 					/>
 				</label>
 
 				<div className="md:col-span-2 grid gap-2">
-					<span className="text-sm font-medium text-slate-700">选择图标</span>
+					<span className="text-sm font-medium text-slate-700">Choose an icon</span>
 					<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 						{ICON_OPTIONS.map((opt) => {
 							const Icon = opt.Icon;
@@ -144,7 +144,7 @@ function CreateGoalForm() {
 				</div>
 
 				<div className="md:col-span-2 grid gap-2">
-					<span className="text-sm font-medium text-slate-700">选择颜色</span>
+					<span className="text-sm font-medium text-slate-700">Choose a color</span>
 					<div className="flex flex-wrap gap-2">
 						{COLOR_OPTIONS.map((color) => (
 							<label key={color} className="relative inline-flex">
@@ -170,7 +170,7 @@ function CreateGoalForm() {
 						type="submit"
 						className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
 					>
-						创建目标
+						Create goal
 					</button>
 				</div>
 			</form>
@@ -200,25 +200,25 @@ function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 								className="rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
 								style={{ backgroundColor: `${color}22`, color }}
 							>
-								每日 {goal.dailyTargetCount} 次
+								Daily target: {goal.dailyTargetCount} times
 							</span>
 						</div>
-						<p className="text-sm text-slate-600">{goal.description || '无描述'}</p>
+						<p className="text-sm text-slate-600">{goal.description || 'No description'}</p>
 					</div>
 				</div>
 				<GoalActionsMenu goal={goal} />
 			</div>
 
 			<div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-sm text-slate-700 md:grid-cols-3">
-				<Stat label="连续完成" value={`${goal.streak} 天`} />
-				<Stat label="完成天数" value={`${goal.totalCompletedDays} 天`} />
-				<Stat label="近 90 天完成" value={`${completionRate}/${goal.heatmap.length}`} />
+				<Stat label="Streak" value={`${goal.streak} days`} />
+				<Stat label="Completed days" value={`${goal.totalCompletedDays} days`} />
+				<Stat label="Past 90 days" value={`${completionRate}/${goal.heatmap.length}`} />
 			</div>
 
 			<div className="space-y-2">
 				<div className="flex items-center justify-between text-xs text-slate-500">
-					<span>热力图</span>
-					<span>深色代表更接近/超过每日目标</span>
+					<span>Heatmap</span>
+					<span>Darker means closer to or above the daily target</span>
 				</div>
 				<Heatmap heatmap={goal.heatmap} />
 			</div>
@@ -230,7 +230,7 @@ function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 					className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
 				>
 					<div className="flex flex-col gap-2">
-						<label className="text-sm font-medium text-slate-700">今日完成次数</label>
+						<label className="text-sm font-medium text-slate-700">Completions today</label>
 						<div className="grid grid-cols-[1fr_auto] gap-2">
 							<input
 								type="number"
@@ -243,7 +243,7 @@ function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 								type="submit"
 								className="whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
 							>
-								记录
+								Log
 							</button>
 						</div>
 						<input
@@ -261,7 +261,7 @@ function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 					className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3"
 				>
 					<div className="flex flex-col gap-2">
-						<label className="text-sm font-medium text-slate-700">更新每日目标次数</label>
+						<label className="text-sm font-medium text-slate-700">Update daily target count</label>
 						<div className="grid grid-cols-[1fr_auto] gap-2">
 							<input
 								type="number"
@@ -274,7 +274,7 @@ function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 								type="submit"
 								className="whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
 							>
-								保存
+								Save
 							</button>
 						</div>
 					</div>
@@ -309,7 +309,7 @@ function Heatmap({ heatmap }: { heatmap: HeatmapDay[] }) {
 					<div
 						key={day.date}
 						className={`h-3 w-3 rounded-[4px] ${color}`}
-						title={`${day.date} | 完成 ${day.count} 次 / 目标 ${day.target} 次`}
+						title={`${day.date} | Completed ${day.count} / Target ${day.target}`}
 					/>
 				);
 			})}

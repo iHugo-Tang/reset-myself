@@ -26,7 +26,7 @@ export function TimezoneSetter() {
 	useEffect(() => {
 		try {
 			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-			const offsetMinutes = -new Date().getTimezoneOffset(); // 正值表示东区（UTC+）
+			const offsetMinutes = -new Date().getTimezoneOffset(); // Positive for east (UTC+)
 
 			if (tz) writeCookie(TZ_COOKIE, tz);
 			writeCookie(OFFSET_COOKIE, String(offsetMinutes));

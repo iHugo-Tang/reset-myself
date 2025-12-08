@@ -27,11 +27,11 @@ export async function POST(req: NextRequest) {
 	const raw = (await parseContent(req)).trim();
 
 	if (!raw) {
-		return reply({ success: false, message: '内容不能为空' }, 400);
+		return reply({ success: false, message: 'Content cannot be empty' }, 400);
 	}
 
 	if (raw.length > MAX_LEN) {
-		return reply({ success: false, message: `内容长度不能超过 ${MAX_LEN} 字` }, 400);
+		return reply({ success: false, message: `Content must be ${MAX_LEN} characters or less` }, 400);
 	}
 
 	try {
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
 			: NextResponse.redirect(new URL('/timeline', req.url));
 	} catch (error) {
 		console.error('POST /api/timeline/notes error', error);
-		return reply({ success: false, message: '保存失败，请稍后重试' }, 500);
+		return reply({ success: false, message: 'Unable to save. Please try again soon.' }, 500);
 	}
 }
