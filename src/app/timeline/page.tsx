@@ -91,10 +91,6 @@ export default async function TimelinePage() {
 						</div>
 					</div>
 					<div className="flex items-center gap-3">
-						<div className="flex items-center gap-2 rounded-2xl bg-slate-900/60 px-3 py-2 text-xs text-slate-300 ring-1 ring-slate-800">
-							<span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_4px_rgba(16,185,129,0.08)] ring-2 ring-emerald-500/40" aria-hidden />
-							<span>实时刷新</span>
-						</div>
 						<Link
 							href="/admin/dashboard"
 							className="rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900"
