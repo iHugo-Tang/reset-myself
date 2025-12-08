@@ -28,9 +28,9 @@ const HEATMAP_DAYS = 105;
 const getBaseUrl = async () => {
 	const h = await headers();
 	const host = h.get('x-forwarded-host') ?? h.get('host');
-	const protocol =
-		h.get('x-forwarded-proto') ??
-		(host?.includes('localhost') || host?.includes('127.0.0.1') ? 'http' : 'https');
+	const protocol = host?.includes('localhost')
+		|| host?.includes('127.0.0.1')
+		? 'http' : (h.get('x-forwarded-proto') ?? 'https');
 	return host ? `${protocol}://${host}` : '';
 };
 
