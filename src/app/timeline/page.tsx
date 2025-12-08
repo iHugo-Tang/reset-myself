@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { Flame, StickyNote } from 'lucide-react';
 import type { SVGProps } from 'react';
 import CheckinPanel from '@/app/timeline/CheckinPanel';
@@ -13,6 +13,14 @@ import type {
 	TimelineHeatmapDay,
 } from '@/db/goals';
 import { DEFAULT_COLOR, DEFAULT_ICON, ICON_MAP } from '@/app/admin/dashboard/iconOptions';
+import {
+	addDaysUtc,
+	formatTimeInTimeZone,
+	resolveRequestTimeSettings,
+	startOfDayUtcMs,
+	toDateKey,
+	weekDayIndex,
+} from '@/utils/time';
 
 export const dynamic = 'force-dynamic';
 const HEATMAP_DAYS = 105;
@@ -26,10 +34,15 @@ const getBaseUrl = async () => {
 	return host ? `${protocol}://${host}` : '';
 };
 
-const fetchTimelineData = async (): Promise<TimelineData> => {
+const fetchTimelineData = async (offsetMinutes: number): Promise<TimelineData> => {
 	try {
 		const baseUrl = await getBaseUrl();
-		const res = await fetch(`${baseUrl}/api/timeline`, { cache: 'no-store' });
+		const headerList = await headers();
+		const cookieHeader = headerList.get('cookie') ?? '';
+		const res = await fetch(`${baseUrl}/api/timeline?tz_offset=${offsetMinutes}`, {
+			cache: 'no-store',
+			headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+		});
 		if (!res.ok) return { days: [], streak: 0, heatmap: [] };
 		const json = (await res.json()) as { data?: TimelineData };
 		return json.data ?? { days: [], streak: 0, heatmap: [] };
@@ -45,8 +58,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TimelinePage() {
-	const timeline = await fetchTimelineData();
-	const today = new Date().toISOString().slice(0, 10);
+	const headerList = await headers();
+	const cookieStore = await cookies();
+	const timeSettings = resolveRequestTimeSettings({
+		cookies: cookieStore,
+		cookieHeader: headerList.get('cookie'),
+	});
+	const timeline = await fetchTimelineData(timeSettings.offsetMinutes);
+	const today = toDateKey(Date.now(), timeSettings.offsetMinutes);
 	const todayData = timeline.days.find((day) => day.date === today);
 
 	return (
@@ -60,7 +79,7 @@ export default async function TimelinePage() {
 				<div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
 					<div className="space-y-4 lg:order-2 lg:col-span-1">
 						<StreakBadge streak={timeline.streak} />
-						<HeatmapCard heatmap={timeline.heatmap} />
+						<HeatmapCard heatmap={timeline.heatmap} offsetMinutes={timeSettings.offsetMinutes} />
 						{todayData ? <CheckinPanel day={todayData} today={today} /> : null}
 					</div>
 
@@ -74,7 +93,13 @@ export default async function TimelinePage() {
 							<div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
 								<div className="divide-y divide-slate-900/70">
 									{timeline.days.map((day, idx) => (
-										<DayCard key={day.date} day={day} today={today} isFirst={idx === 0} />
+										<DayCard
+											key={day.date}
+											day={day}
+											today={today}
+											isFirst={idx === 0}
+											timeZone={timeSettings.timeZone}
+										/>
 									))}
 								</div>
 							</div>
@@ -127,34 +152,30 @@ function StreakBadge({ streak }: { streak: number }) {
 
 const heatmapColors = ['#0b1017', '#123040', '#15516f', '#1c77a0', '#2bb4d9'];
 
-const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, days = HEATMAP_DAYS) => {
+const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, offsetMinutes: number, days = HEATMAP_DAYS) => {
 	const byDate = new Map<string, number>();
 	for (const entry of heatmap ?? []) {
 		byDate.set(entry.date, entry.count);
 	}
 
 	// 以当前周的最后一天为结束，向前填充 days 天，保证当前周展示完整
-	const today = new Date();
-	today.setUTCHours(0, 0, 0, 0);
-	const weekdayIdx = today.getUTCDay(); // 0 = 周日
-	const endOfWeek = new Date(today);
-	endOfWeek.setUTCDate(today.getUTCDate() + (6 - weekdayIdx));
-
-	const start = new Date(endOfWeek);
-	start.setUTCDate(endOfWeek.getUTCDate() - (days - 1));
+	const todayUtcStart = startOfDayUtcMs(Date.now(), offsetMinutes);
+	const todayKey = toDateKey(todayUtcStart, offsetMinutes);
+	const weekdayIdx = weekDayIndex(todayKey); // 0 = 周日
+	const endOfWeekUtc = addDaysUtc(todayUtcStart, 6 - weekdayIdx);
+	const startUtc = addDaysUtc(endOfWeekUtc, -(days - 1));
 
 	const filled: TimelineHeatmapDay[] = [];
 	for (let i = 0; i < days; i++) {
-		const cursor = new Date(start);
-		cursor.setUTCDate(start.getUTCDate() + i);
-		const dateKey = cursor.toISOString().slice(0, 10);
+		const cursorUtc = addDaysUtc(startUtc, i);
+		const dateKey = toDateKey(cursorUtc, offsetMinutes);
 		filled.push({ date: dateKey, count: byDate.get(dateKey) ?? 0 });
 	}
 	return filled;
 };
 
-function HeatmapCard({ heatmap }: { heatmap: TimelineHeatmapDay[] }) {
-	const data = normalizeHeatmap(heatmap);
+function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]; offsetMinutes: number }) {
+	const data = normalizeHeatmap(heatmap, offsetMinutes);
 	const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
 
 	if (!(heatmap?.length ?? 0)) {
@@ -256,10 +277,12 @@ function DayCard({
 	day,
 	today,
 	isFirst,
+	timeZone,
 }: {
 	day: TimelineDay;
 	today: string;
 	isFirst: boolean;
+	timeZone: string;
 }) {
 	const finishedCount = day.items.filter((item) => item.count > 0).length;
 	const isToday = day.date === today;
@@ -294,7 +317,7 @@ function DayCard({
 				) : (
 					day.events.map((event) =>
 						event.type === 'note' ? (
-							<NoteCard key={`note-${event.id}`} note={event} />
+							<NoteCard key={`note-${event.id}`} note={event} timeZone={timeZone} />
 						) : (
 							<GoalsEventCard key="goals" items={event.items} today={today} />
 						),
@@ -323,8 +346,8 @@ function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string
 	);
 }
 
-function NoteCard({ note }: { note: TimelineNoteEvent }) {
-	const timeLabel = formatTimeLabel(note.createdAt);
+function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: string }) {
+	const timeLabel = formatTimeLabel(note.createdAt, timeZone);
 	return (
 		<div className="relative flex gap-3 rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3 pr-12">
 			<div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-slate-200 ring-1 ring-slate-800">
@@ -398,11 +421,8 @@ const formatDateLabel = (date: string) => {
 	return `${date} · ${weekday[d.getUTCDay()]}`;
 };
 
-const formatTimeLabel = (iso: string) => {
-	const ts = Date.parse(iso);
-	if (Number.isNaN(ts)) return iso;
-	const d = new Date(ts);
-	return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+const formatTimeLabel = (iso: string, timeZone: string) => {
+	return formatTimeInTimeZone(iso, timeZone, 'zh-CN');
 };
 
 function CheckIcon(props: SVGProps<SVGSVGElement>) {

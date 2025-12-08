@@ -8,6 +8,14 @@ import {
 	type GoalCompletion,
 	type TimelineNote,
 } from '../../drizzle/schema';
+import {
+	addDaysUtc,
+	buildDateKeys,
+	DEFAULT_OFFSET_MINUTES,
+	normalizeOffset,
+	startOfDayUtcMs,
+	toDateKey,
+} from '@/utils/time';
 
 export type HeatmapDay = {
 	date: string;
@@ -63,46 +71,48 @@ export type TimelineGoalEvent = {
 
 export type TimelineEvent = TimelineNoteEvent | TimelineGoalEvent;
 
-const formatDate = (date: Date) => date.toISOString().slice(0, 10); // YYYY-MM-DD UTC
+type TimeContext = { offsetMinutes?: number };
 
-const buildHeatmap = (completions: GoalCompletion[], days: number, target: number): HeatmapDay[] => {
+const resolveTimeContext = (ctx?: TimeContext) => ({
+	offsetMinutes: normalizeOffset(ctx?.offsetMinutes ?? DEFAULT_OFFSET_MINUTES),
+});
+
+const buildHeatmap = (completions: GoalCompletion[], days: number, target: number, offsetMinutes: number): HeatmapDay[] => {
 	const byDate = new Map<string, number>();
 	for (const c of completions) {
 		byDate.set(c.date, c.count);
 	}
 
-	const today = new Date();
-	const start = new Date();
-	start.setUTCDate(today.getUTCDate() - (days - 1));
+	const todayUtcStart = startOfDayUtcMs(Date.now(), offsetMinutes);
+	const startUtc = addDaysUtc(todayUtcStart, -(days - 1));
 
 	const heatmap: HeatmapDay[] = [];
 	for (let i = 0; i < days; i++) {
-		const d = new Date(start);
-		d.setUTCDate(start.getUTCDate() + i);
-		const dateKey = formatDate(d);
+		const utcMs = addDaysUtc(startUtc, i);
+		const dateKey = toDateKey(utcMs, offsetMinutes);
 		heatmap.push({ date: dateKey, count: byDate.get(dateKey) ?? 0, target });
 	}
 
 	return heatmap;
 };
 
-const computeStreak = (completions: GoalCompletion[]): number => {
+const computeStreak = (completions: GoalCompletion[], offsetMinutes: number): number => {
 	const completionDates = new Map<string, number>();
 	for (const completion of completions) {
 		completionDates.set(completion.date, completion.count);
 	}
 
 	let streak = 0;
-	const cursor = new Date();
+	let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
 
-	// 连续天数：从今天开始向前检查，直到遇到未完成的日期
+	// 连续天数：从今天开始向前检查，直到遇到未完成的日期（以用户时区为日界）
 	while (true) {
-		const key = formatDate(cursor);
+		const key = toDateKey(cursorUtc, offsetMinutes);
 		const count = completionDates.get(key) ?? 0;
 
 		if (count > 0) {
 			streak += 1;
-			cursor.setUTCDate(cursor.getUTCDate() - 1);
+			cursorUtc = addDaysUtc(cursorUtc, -1);
 		} else {
 			break;
 		}
@@ -114,13 +124,13 @@ const computeStreak = (completions: GoalCompletion[]): number => {
 const computeTimelineStreak = (
 	goalsList: Goal[],
 	byDate: Map<string, Map<number, number>>,
+	offsetMinutes: number,
 ): number => {
 	let streak = 0;
-	const cursor = new Date();
-	cursor.setUTCHours(0, 0, 0, 0);
+	let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
 
 	while (true) {
-		const key = formatDate(cursor);
+		const key = toDateKey(cursorUtc, offsetMinutes);
 		const dateMap = byDate.get(key);
 
 		const allCompleted = goalsList.every(
@@ -130,7 +140,7 @@ const computeTimelineStreak = (
 		if (!allCompleted) break;
 
 		streak += 1;
-		cursor.setUTCDate(cursor.getUTCDate() - 1);
+		cursorUtc = addDaysUtc(cursorUtc, -1);
 	}
 
 	return streak;
@@ -139,17 +149,15 @@ const computeTimelineStreak = (
 const buildTimelineHeatmap = (
 	byDate: Map<string, Map<number, number>>,
 	days: number,
+	offsetMinutes: number,
 ): TimelineHeatmapDay[] => {
-	const today = new Date();
-	today.setUTCHours(0, 0, 0, 0);
-	const start = new Date(today);
-	start.setUTCDate(today.getUTCDate() - (days - 1));
+	const todayUtcStart = startOfDayUtcMs(Date.now(), offsetMinutes);
+	const startUtc = addDaysUtc(todayUtcStart, -(days - 1));
 
 	const heatmap: TimelineHeatmapDay[] = [];
 	for (let i = 0; i < days; i++) {
-		const cursor = new Date(start);
-		cursor.setUTCDate(start.getUTCDate() + i);
-		const dateKey = formatDate(cursor);
+		const utcMs = addDaysUtc(startUtc, i);
+		const dateKey = toDateKey(utcMs, offsetMinutes);
 		const dateMap = byDate.get(dateKey);
 		const totalCount = dateMap ? Array.from(dateMap.values()).reduce((sum, val) => sum + val, 0) : 0;
 		heatmap.push({ date: dateKey, count: totalCount });
@@ -158,14 +166,17 @@ const buildTimelineHeatmap = (
 	return heatmap;
 };
 
-export const getTimelineData = async (env: EnvWithD1, days = 91): Promise<TimelineData> => {
+export const getTimelineData = async (
+	env: EnvWithD1,
+	days = 91,
+	ctx?: TimeContext,
+): Promise<TimelineData> => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
 	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
 	const goalIds = goalRows.map((g) => g.id);
 
-	const today = new Date();
-	today.setUTCHours(0, 0, 0, 0);
-	const todayKey = formatDate(today);
+	const todayKey = toDateKey(startOfDayUtcMs(Date.now(), offsetMinutes), offsetMinutes);
 
 	const completions = goalIds.length
 		? await db
@@ -182,13 +193,7 @@ export const getTimelineData = async (env: EnvWithD1, days = 91): Promise<Timeli
 		byDate.set(completion.date, dateMap);
 	}
 
-	const dates: string[] = [];
-	for (let i = 0; i < days; i++) {
-		const cursor = new Date();
-		cursor.setUTCHours(0, 0, 0, 0);
-		cursor.setUTCDate(today.getUTCDate() - i);
-		dates.push(formatDate(cursor));
-	}
+	const dates: string[] = buildDateKeys(days, offsetMinutes, startOfDayUtcMs(Date.now(), offsetMinutes));
 
 	const notes =
 		(await db
@@ -264,13 +269,18 @@ export const getTimelineData = async (env: EnvWithD1, days = 91): Promise<Timeli
 		})
 		.filter((day) => day.date === todayKey || day.items.length > 0 || day.events.some((e) => e.type === 'note'));
 
-	const streak = goalRows.length ? computeTimelineStreak(goalRows, byDate) : 0;
-	const heatmap = buildTimelineHeatmap(byDate, days);
+	const streak = goalRows.length ? computeTimelineStreak(goalRows, byDate, offsetMinutes) : 0;
+	const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
 
 	return { days: daysData, streak, heatmap };
 };
 
-export const getDashboardData = async (env: EnvWithD1, days = 90): Promise<GoalWithStats[]> => {
+export const getDashboardData = async (
+	env: EnvWithD1,
+	days = 90,
+	ctx?: TimeContext,
+): Promise<GoalWithStats[]> => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
 	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
 
@@ -294,9 +304,9 @@ export const getDashboardData = async (env: EnvWithD1, days = 90): Promise<GoalW
 		const completions = byGoal.get(goal.id) ?? [];
 		return {
 			...goal,
-			streak: computeStreak(completions),
+			streak: computeStreak(completions, offsetMinutes),
 			totalCompletedDays: completions.filter((c) => c.count > 0).length,
-			heatmap: buildHeatmap(completions, days, goal.dailyTargetCount),
+			heatmap: buildHeatmap(completions, days, goal.dailyTargetCount, offsetMinutes),
 		};
 	});
 };
@@ -379,35 +389,39 @@ export const recordGoalCompletion = async (
 	env: EnvWithD1,
 	goalId: number,
 	count: number,
-	date: string = formatDate(new Date()),
+	date?: string,
+	ctx?: TimeContext,
 ) => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
+	const targetDate = (date?.trim?.() ?? '') || toDateKey(Date.now(), offsetMinutes);
 	const [existing] = await db
 		.select()
 		.from(goalCompletions)
-		.where(and(eq(goalCompletions.goalId, goalId), eq(goalCompletions.date, date)))
+		.where(and(eq(goalCompletions.goalId, goalId), eq(goalCompletions.date, targetDate)))
 		.limit(1);
 
 	if (existing) {
 		await db
 			.update(goalCompletions)
 			.set({ count: existing.count + count })
-			.where(and(eq(goalCompletions.goalId, goalId), eq(goalCompletions.date, date)));
+			.where(and(eq(goalCompletions.goalId, goalId), eq(goalCompletions.date, targetDate)));
 	} else {
 		await db.insert(goalCompletions).values({
 			goalId,
-			date,
+			date: targetDate,
 			count,
 		});
 	}
 };
 
-export const createTimelineNote = async (env: EnvWithD1, content: string, date?: string) => {
+export const createTimelineNote = async (env: EnvWithD1, content: string, date?: string, ctx?: TimeContext) => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
 	const trimmed = content.trim();
 	if (!trimmed) throw new Error('content_required');
 
-	const targetDate = date?.trim() || formatDate(new Date());
+	const targetDate = date?.trim() || toDateKey(Date.now(), offsetMinutes);
 	const [inserted] = await db
 		.insert(timelineNotes)
 		.values({

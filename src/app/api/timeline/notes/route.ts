@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createTimelineNote } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { resolveRequestTimeSettings } from '@/utils/time';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 const MAX_LEN = 280;
@@ -21,6 +22,7 @@ const parseContent = async (req: NextRequest): Promise<string> => {
 export async function POST(req: NextRequest) {
 	const wantsJson = req.headers.get('accept')?.includes('application/json') ?? true;
 	const reply = (body: object, status = 200) => NextResponse.json(body, { status });
+	const time = resolveRequestTimeSettings({ cookies: req.cookies, cookieHeader: req.headers.get('cookie') });
 
 	const raw = (await parseContent(req)).trim();
 
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
 	}
 
 	try {
-		const note = await createTimelineNote(getEnv(), raw);
+		const note = await createTimelineNote(getEnv(), raw, undefined, { offsetMinutes: time.offsetMinutes });
 		return wantsJson
 			? reply({ success: true, data: note })
 			: NextResponse.redirect(new URL('/timeline', req.url));

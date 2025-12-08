@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import type { GoalWithStats, HeatmapDay } from '@/db/goals';
 import { GoalActionsMenu } from './GoalActionsMenu';
 import { COLOR_OPTIONS, DEFAULT_COLOR, DEFAULT_ICON, ICON_MAP, ICON_OPTIONS } from './iconOptions';
+import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +16,13 @@ const getBaseUrl = async () => {
 	return host ? `${protocol}://${host}` : '';
 };
 
-const fetchDashboardData = async (): Promise<GoalWithStats[]> => {
+const fetchDashboardData = async (offsetMinutes: number, cookieHeader: string): Promise<GoalWithStats[]> => {
 	try {
 		const baseUrl = await getBaseUrl();
-		const res = await fetch(`${baseUrl}/api/goals`, { cache: 'no-store' });
+		const res = await fetch(`${baseUrl}/api/goals?tz_offset=${offsetMinutes}`, {
+			cache: 'no-store',
+			headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+		});
 		if (!res.ok) return [];
 		const json = (await res.json()) as { data?: GoalWithStats[] };
 		return json.data ?? [];
@@ -34,7 +38,12 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDashboardPage() {
-	const goals = await fetchDashboardData();
+	const headerList = await headers();
+	const cookieHeader = headerList.get('cookie') ?? '';
+	const cookieStore = await cookies();
+	const timeSettings = resolveRequestTimeSettings({ cookies: cookieStore, cookieHeader });
+	const goals = await fetchDashboardData(timeSettings.offsetMinutes, cookieHeader);
+	const today = toDateKey(Date.now(), timeSettings.offsetMinutes);
 
 	return (
 		<div className="min-h-screen bg-slate-50 text-slate-900">
@@ -62,7 +71,7 @@ export default async function AdminDashboardPage() {
 					) : (
 						<div className="grid gap-4 md:grid-cols-2">
 							{goals.map((goal) => (
-								<GoalCard key={goal.id} goal={goal} />
+								<GoalCard key={goal.id} goal={goal} today={today} />
 							))}
 						</div>
 					)}
@@ -169,9 +178,8 @@ function CreateGoalForm() {
 	);
 }
 
-function GoalCard({ goal }: { goal: GoalWithStats }) {
+function GoalCard({ goal, today }: { goal: GoalWithStats; today: string }) {
 	const completionRate = goal.heatmap.filter((day) => day.count > 0).length;
-	const today = new Date().toISOString().slice(0, 10);
 	const Icon = ICON_MAP[goal.icon] ?? ICON_MAP[DEFAULT_ICON];
 	const color = goal.color || DEFAULT_COLOR;
 
