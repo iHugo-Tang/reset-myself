@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import type { GoalWithStats, HeatmapDay } from '@/db/goals';
+import { DeleteGoalButton } from './DeleteGoalButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,9 +131,12 @@ function GoalCard({ goal }: { goal: GoalWithStats }) {
 					<h3 className="text-lg font-semibold text-slate-900">{goal.title}</h3>
 					<p className="text-sm text-slate-600">{goal.description || '无描述'}</p>
 				</div>
-				<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-					每日 {goal.dailyTargetCount} 次
-				</span>
+				<div className="flex items-center gap-2">
+					<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+						每日 {goal.dailyTargetCount} 次
+					</span>
+					<DeleteGoalButton goalId={goal.id} />
+				</div>
 			</div>
 
 			<div className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-sm text-slate-700 md:grid-cols-3">

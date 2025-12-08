@@ -14,6 +14,24 @@ export type GoalWithStats = Goal & {
 	heatmap: HeatmapDay[];
 };
 
+export type TimelineItem = {
+	goalId: number;
+	title: string;
+	target: number;
+	count: number;
+};
+
+export type TimelineDay = {
+	date: string;
+	items: TimelineItem[];
+	allGoalsCompleted: boolean;
+};
+
+export type TimelineData = {
+	days: TimelineDay[];
+	streak: number;
+};
+
 const formatDate = (date: Date) => date.toISOString().slice(0, 10); // YYYY-MM-DD UTC
 
 const buildHeatmap = (completions: GoalCompletion[], days: number, target: number): HeatmapDay[] => {
@@ -60,6 +78,93 @@ const computeStreak = (completions: GoalCompletion[]): number => {
 	}
 
 	return streak;
+};
+
+const computeTimelineStreak = (
+	goalsList: Goal[],
+	byDate: Map<string, Map<number, number>>,
+): number => {
+	let streak = 0;
+	const cursor = new Date();
+	cursor.setUTCHours(0, 0, 0, 0);
+
+	while (true) {
+		const key = formatDate(cursor);
+		const dateMap = byDate.get(key);
+
+		const allCompleted = goalsList.every(
+			(goal) => (dateMap?.get(goal.id) ?? 0) >= goal.dailyTargetCount,
+		);
+
+		if (!allCompleted) break;
+
+		streak += 1;
+		cursor.setUTCDate(cursor.getUTCDate() - 1);
+	}
+
+	return streak;
+};
+
+export const getTimelineData = async (env: EnvWithD1, days = 30): Promise<TimelineData> => {
+	const db = getDb(env);
+	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+
+	if (!goalRows.length) return { days: [], streak: 0 };
+
+	const goalIds = goalRows.map((g) => g.id);
+	const today = new Date();
+	today.setUTCHours(0, 0, 0, 0);
+	const todayKey = formatDate(today);
+	const endKey = todayKey;
+
+	const completions = await db
+		.select()
+		.from(goalCompletions)
+		.where(inArray(goalCompletions.goalId, goalIds))
+		.orderBy(goalCompletions.date);
+
+	const byDate = new Map<string, Map<number, number>>();
+	for (const completion of completions) {
+		const dateMap = byDate.get(completion.date) ?? new Map<number, number>();
+		dateMap.set(completion.goalId, (dateMap.get(completion.goalId) ?? 0) + completion.count);
+		byDate.set(completion.date, dateMap);
+	}
+
+	const dates: string[] = [];
+	for (let i = 0; i < days; i++) {
+		const cursor = new Date();
+		cursor.setUTCHours(0, 0, 0, 0);
+		cursor.setUTCDate(today.getUTCDate() - i);
+		dates.push(formatDate(cursor));
+	}
+
+	const daysData = dates
+		.map((date) => {
+			const dateMap = byDate.get(date) ?? new Map<number, number>();
+			const items = goalRows
+				.map((goal) => ({
+					goalId: goal.id,
+					title: goal.title,
+					target: goal.dailyTargetCount,
+					count: dateMap.get(goal.id) ?? 0,
+				}))
+				.filter((item) => date === todayKey || item.count > 0);
+
+			const allGoalsCompleted = goalRows.every(
+				(goal) => (dateMap.get(goal.id) ?? 0) >= goal.dailyTargetCount,
+			);
+
+			return {
+				date,
+				items,
+				allGoalsCompleted,
+			};
+		})
+		.filter((day) => day.date === todayKey || day.items.length > 0);
+
+	const streak = computeTimelineStreak(goalRows, byDate);
+
+	return { days: daysData, streak };
 };
 
 export const getDashboardData = async (env: EnvWithD1, days = 90): Promise<GoalWithStats[]> => {
@@ -146,4 +251,9 @@ export const recordGoalCompletion = async (
 			count,
 		});
 	}
+};
+
+export const deleteGoal = async (env: EnvWithD1, goalId: number) => {
+	const db = getDb(env);
+	await db.delete(goals).where(eq(goals.id, goalId));
 };
