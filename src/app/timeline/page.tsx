@@ -86,14 +86,14 @@ export default async function TimelinePage() {
 							/>
 						</div>
 						<div className="space-y-1">
-							<p className="text-sm font-semibold text-slate-100">RESET MYSELF</p>
-							<p className="text-xs text-slate-500">保持节奏，专注当下</p>
+							<p className="text-base font-semibold text-slate-100">RESET MYSELF</p>
+							<p className="text-sm text-slate-500">保持节奏，专注当下</p>
 						</div>
 					</div>
 					<div className="flex items-center gap-3">
 						<Link
 							href="/admin/dashboard"
-							className="rounded-2xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900"
+							className="rounded-2xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-sm font-semibold text-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900"
 						>
 							Dashboard
 						</Link>
@@ -160,13 +160,13 @@ function StreakBadge({ streak }: { streak: number }) {
 				<Flame className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`} />
 			</div>
 			<div className="space-y-0.5">
-				<p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+				<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
 					连续打卡
 				</p>
 				<p className="text-sm font-semibold text-slate-50">
 					{isActive ? `当前 ${streak} 天` : '还没有连续纪录'}
 				</p>
-				<p className="text-[11px] text-slate-400">
+				<p className="text-xs text-slate-400">
 					{isActive ? '保持节奏，全部目标完成才算一天' : '完成今天所有目标即可开启连续打卡'}
 				</p>
 			</div>
@@ -283,7 +283,7 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 											}}
 											role="presentation"
 										/>
-										<div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden -translate-x-1/2 -translate-y-[110%] whitespace-pre rounded-md bg-slate-950 px-2 py-1 text-[11px] text-slate-100 shadow-lg ring-1 ring-slate-800 group-hover:block">
+										<div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden -translate-x-1/2 -translate-y-[110%] whitespace-pre rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 shadow-lg ring-1 ring-slate-800 group-hover:block">
 											{formatTooltip(cell)}
 										</div>
 									</div>
@@ -317,27 +317,27 @@ function DayCard({
 			<div className="flex items-start justify-between gap-3 px-4 sm:px-5">
 				<div className="space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<p className="text-lg font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
+						<p className="text-xl font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
 						{isToday && (
-							<span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-500/40">
+							<span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-sm font-semibold text-sky-200 ring-1 ring-sky-500/40">
 								今天
 							</span>
 						)}
 					</div>
 					<p
-						className={`text-[11px] font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
+						className={`text-sm font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
 					>
 						{allCompleted ? '当天全部目标已达标，计入连续打卡' : '尚有目标未完成，不计入连续打卡'}
 					</p>
 				</div>
-				<span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-slate-300 ring-1 ring-slate-800">
+				<span className="rounded-full bg-slate-900 px-3.5 py-1 text-sm font-medium text-slate-300 ring-1 ring-slate-800">
 					{day.items.length} 个目标
 				</span>
 			</div>
 
 			<div className="space-y-3 px-4 pb-2 sm:px-5">
 				{day.events.length === 0 ? (
-					<p className="text-sm text-slate-500">暂无记录</p>
+					<p className="text-base text-slate-500">暂无记录</p>
 				) : (
 					day.events.map((event) =>
 						event.type === 'note' ? (
@@ -355,7 +355,7 @@ function DayCard({
 function GoalsEventCard({ items, today }: { items: TimelineItem[]; today: string }) {
 	if (!items.length) {
 		return (
-			<div className="rounded-2xl border border-slate-900/80 bg-[#0f1722] px-4 py-3 text-sm text-slate-400">
+			<div className="rounded-2xl border border-slate-900/80 bg-[#0f1722] px-4 py-3 text-base text-slate-400">
 				今日暂无目标记录
 			</div>
 		);
@@ -378,8 +378,8 @@ function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: strin
 				<StickyNote className="h-4 w-4" />
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-2">
-				<p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{note.content}</p>
-				<span className="text-[11px] text-slate-500">{timeLabel}</span>
+				<p className="whitespace-pre-wrap text-base leading-relaxed text-slate-100">{note.content}</p>
+				<span className="text-sm text-slate-500">{timeLabel}</span>
 			</div>
 			<NoteActions noteId={note.id} />
 		</div>
@@ -409,14 +409,14 @@ function GoalRow({ item, today }: { item: TimelineItem; today: string }) {
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<div className="flex min-w-0 items-center gap-2">
-					<p className="truncate text-sm font-semibold text-slate-50">{item.title}</p>
-					<span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
+					<p className="truncate text-base font-semibold text-slate-50">{item.title}</p>
+					<span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium ${badgeClass}`}>
 						{isCompleted && <CheckIcon className="h-3 w-3" />}
 						{isCompleted ? '已达标' : '未达标'}
 					</span>
 				</div>
-				<div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-					<span className="font-semibold text-slate-100">
+				<div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+					<span className="text-base font-semibold text-slate-100">
 						{item.count} / {item.target} 次
 					</span>
 					<span className={isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'}>

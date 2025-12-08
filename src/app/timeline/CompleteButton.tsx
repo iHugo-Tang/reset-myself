@@ -72,7 +72,7 @@ export function CompleteButton({
 
 	const baseClass =
 		'font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500';
-	const sizeClass = variant === 'compact' ? 'rounded-xl px-2.5 py-1 text-[11px]' : 'rounded-full px-3 py-1.5 text-xs';
+	const sizeClass = variant === 'compact' ? 'rounded-xl px-2.5 py-1 text-sm' : 'rounded-full px-3 py-1.5 text-xs';
 	const enabledClass =
 		variant === 'compact'
 			? 'border border-slate-700 bg-slate-900/70 text-slate-100 hover:border-slate-500 hover:bg-slate-800 active:border-slate-400'
@@ -93,7 +93,7 @@ export function CompleteButton({
 			>
 				{buttonText}
 			</button>
-			{error ? <p className="text-[11px] text-amber-300">{error}</p> : null}
+			{error ? <p className="text-sm text-amber-300">{error}</p> : null}
 		</div>
 	);
 }
