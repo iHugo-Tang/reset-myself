@@ -246,11 +246,11 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 
 	return (
 		<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
-			<div className="flex items-center justify-between gap-2">
-				<p className="text-sm font-semibold text-slate-100">
+			<div className="flex flex-col leading-tight gap-2">
+				<span className="text-sm font-semibold text-slate-100">
 					Heatmap for the last {Math.ceil(HEATMAP_DAYS / 7)} weeks
-				</p>
-				<span className="text-sm text-slate-500">Color shows completions for the day</span>
+				</span>
+				<span className="text-xs text-slate-500">Color shows completions for the day</span>
 			</div>
 
 			<div className="mt-4 overflow-visible pb-1">
