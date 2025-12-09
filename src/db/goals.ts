@@ -1,12 +1,14 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { getDb, type EnvWithD1 } from './client';
 import {
 	goalCompletions,
 	goals,
+	dailySummaries,
+	timelineEvents,
 	timelineNotes,
 	type Goal,
 	type GoalCompletion,
-	type TimelineNote,
+	type TimelineEventRow,
 } from '../../drizzle/schema';
 import {
 	addDaysUtc,
@@ -38,6 +40,47 @@ export type TimelineItem = {
 	color: string;
 };
 
+export type TimelineEventType = 'note' | 'checkin' | 'goal_created' | 'goal_deleted' | 'summary';
+
+type TimelineBaseEvent = {
+	id: string;
+	type: TimelineEventType;
+	createdAt: string;
+};
+
+export type TimelineNoteEvent = TimelineBaseEvent & {
+	type: 'note';
+	content: string;
+	noteId: number | null;
+};
+
+export type TimelineCheckinEvent = TimelineBaseEvent & {
+	type: 'checkin';
+	goalId: number;
+	goalTitle: string;
+	delta: number;
+	newCount: number;
+	icon: string;
+	color: string;
+	target: number;
+};
+
+export type TimelineGoalLifecycleEvent = TimelineBaseEvent & {
+	type: 'goal_created' | 'goal_deleted';
+	goalId: number | null;
+	title: string;
+	icon: string;
+	color: string;
+};
+
+export type TimelineSummaryEvent = TimelineBaseEvent & {
+	type: 'summary';
+	items: TimelineItem[];
+	allGoalsCompleted: boolean;
+};
+
+export type TimelineEvent = TimelineNoteEvent | TimelineCheckinEvent | TimelineGoalLifecycleEvent | TimelineSummaryEvent;
+
 export type TimelineDay = {
 	date: string;
 	items: TimelineItem[];
@@ -56,26 +99,30 @@ export type TimelineData = {
 	heatmap: TimelineHeatmapDay[];
 };
 
-export type TimelineNoteEvent = {
-	type: 'note';
-	id: number;
-	content: string;
-	createdAt: string;
-};
-
-export type TimelineGoalEvent = {
-	type: 'goals';
-	items: TimelineItem[];
-	allGoalsCompleted: boolean;
-};
-
-export type TimelineEvent = TimelineNoteEvent | TimelineGoalEvent;
-
 type TimeContext = { offsetMinutes?: number };
 
 const resolveTimeContext = (ctx?: TimeContext) => ({
 	offsetMinutes: normalizeOffset(ctx?.offsetMinutes ?? DEFAULT_OFFSET_MINUTES),
 });
+
+type LogEventInput = {
+	date: string;
+	type: Exclude<TimelineEventType, 'summary'>;
+	goalId?: number | null;
+	payload?: Record<string, unknown> | null;
+	createdAt?: string;
+};
+
+const logTimelineEvent = async (env: EnvWithD1, input: LogEventInput) => {
+	const db = getDb(env);
+	await db.insert(timelineEvents).values({
+		date: input.date,
+		type: input.type,
+		goalId: input.goalId ?? null,
+		payload: input.payload ?? null,
+		createdAt: input.createdAt ?? new Date().toISOString(),
+	});
+};
 
 const buildHeatmap = (completions: GoalCompletion[], days: number, target: number, offsetMinutes: number): HeatmapDay[] => {
 	const byDate = new Map<string, number>();
@@ -146,6 +193,61 @@ const computeTimelineStreak = (
 	return streak;
 };
 
+type DailySummaryData = {
+	date: string;
+	totalGoals: number;
+	completedGoals: number;
+	successRate: number;
+};
+
+const computeDailySummary = (
+	dateKey: string,
+	goalRows: Goal[],
+	byDate: Map<string, Map<number, number>>,
+	offsetMinutes: number,
+): DailySummaryData | null => {
+	const goalsForDate = goalRows.filter((goal) => {
+		const createdKey = toDateKey(goal.createdAt, offsetMinutes);
+		return createdKey && createdKey <= dateKey;
+	});
+
+	const totalGoals = goalsForDate.length;
+	if (totalGoals === 0) return null;
+
+	const dateMap = byDate.get(dateKey) ?? new Map<number, number>();
+	let completedGoals = 0;
+	for (const goal of goalsForDate) {
+		const count = dateMap.get(goal.id) ?? 0;
+		if (count >= goal.dailyTargetCount) completedGoals += 1;
+	}
+
+	const successRate = totalGoals > 0 ? completedGoals / totalGoals : 0;
+	return { date: dateKey, totalGoals, completedGoals, successRate };
+};
+
+const upsertDailySummaries = async (env: EnvWithD1, summaries: DailySummaryData[]) => {
+	if (!summaries.length) return;
+	const db = getDb(env);
+	await db
+		.insert(dailySummaries)
+		.values(
+			summaries.map((summary) => ({
+				date: summary.date,
+				totalGoals: summary.totalGoals,
+				completedGoals: summary.completedGoals,
+				successRate: summary.successRate,
+			})),
+		)
+		.onConflictDoUpdate({
+			target: dailySummaries.date,
+			set: {
+				totalGoals: sql`excluded.total_goals`,
+				completedGoals: sql`excluded.completed_goals`,
+				successRate: sql`excluded.success_rate`,
+			},
+		});
+};
+
 const buildTimelineHeatmap = (
 	byDate: Map<string, Map<number, number>>,
 	days: number,
@@ -166,6 +268,47 @@ const buildTimelineHeatmap = (
 	return heatmap;
 };
 
+const computeSummaryStreak = (summaries: DailySummaryData[], offsetMinutes: number): number => {
+	const summaryMap = new Map<string, DailySummaryData>();
+	for (const summary of summaries) {
+		summaryMap.set(summary.date, summary);
+	}
+
+	let streak = 0;
+	let cursorUtc = addDaysUtc(startOfDayUtcMs(Date.now(), offsetMinutes), -1);
+
+	while (true) {
+		const key = toDateKey(cursorUtc, offsetMinutes);
+		const summary = summaryMap.get(key);
+		if (!summary) break;
+
+		if (summary.totalGoals > 0 && summary.completedGoals >= summary.totalGoals) {
+			streak += 1;
+			cursorUtc = addDaysUtc(cursorUtc, -1);
+		} else {
+			break;
+		}
+	}
+
+	return streak;
+};
+
+const buildDateRangeKeys = (startKey: string, endKey: string): string[] => {
+	const keys: string[] = [];
+	const startDate = new Date(`${startKey}T00:00:00Z`);
+	const endDate = new Date(`${endKey}T00:00:00Z`);
+
+	if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate > endDate) {
+		return keys;
+	}
+
+	for (let cursor = endDate; cursor >= startDate; cursor = new Date(cursor.getTime() - 86_400_000)) {
+		keys.push(cursor.toISOString().slice(0, 10));
+	}
+
+	return keys;
+};
+
 export const getTimelineData = async (
 	env: EnvWithD1,
 	days = 91,
@@ -175,6 +318,17 @@ export const getTimelineData = async (
 	const db = getDb(env);
 	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
 	const goalIds = goalRows.map((g) => g.id);
+	const goalMetaMap = new Map(
+		goalRows.map((goal) => [
+			goal.id,
+			{
+				title: goal.title,
+				icon: goal.icon,
+				color: goal.color,
+				target: goal.dailyTargetCount,
+			},
+		]),
+	);
 
 	const todayKey = toDateKey(startOfDayUtcMs(Date.now(), offsetMinutes), offsetMinutes);
 
@@ -194,29 +348,123 @@ export const getTimelineData = async (
 	}
 
 	const dates: string[] = buildDateKeys(days, offsetMinutes, startOfDayUtcMs(Date.now(), offsetMinutes));
+	const pastDates = dates.filter((date) => date !== todayKey);
 
-	const notes =
+	const computedSummaries = pastDates
+		.map((date) => computeDailySummary(date, goalRows, byDate, offsetMinutes))
+		.filter((s): s is DailySummaryData => Boolean(s));
+
+	await upsertDailySummaries(env, computedSummaries);
+
+	const storedSummaries =
+		pastDates.length > 0
+			? await db.select().from(dailySummaries).where(inArray(dailySummaries.date, pastDates))
+			: [];
+
+	const summaryData: DailySummaryData[] = storedSummaries.map((row) => ({
+		date: row.date,
+		totalGoals: row.totalGoals,
+		completedGoals: row.completedGoals,
+		successRate: row.successRate,
+	}));
+
+	const summaryMap = new Map(summaryData.map((s) => [s.date, s]));
+
+	const eventRows: TimelineEventRow[] =
+		dates.length === 0
+			? []
+			: await db
+					.select()
+					.from(timelineEvents)
+					.where(inArray(timelineEvents.date, dates))
+					.orderBy(desc(timelineEvents.date), desc(timelineEvents.createdAt), desc(timelineEvents.id));
+
+	const legacyNotes =
 		(await db
 			.select()
 			.from(timelineNotes)
 			.where(inArray(timelineNotes.date, dates))
 			.orderBy(desc(timelineNotes.createdAt))) ?? [];
 
-	const notesByDate = new Map<string, TimelineNote[]>();
-	for (const note of notes) {
-		const list = notesByDate.get(note.date) ?? [];
-		list.push(note);
-		notesByDate.set(note.date, list);
+	const noteIdsFromEvents = new Set<number>();
+	const eventsByDate = new Map<string, TimelineEvent[]>();
+
+	const pushEvent = (date: string, event: TimelineEvent) => {
+		const list = eventsByDate.get(date) ?? [];
+		list.push(event);
+		eventsByDate.set(date, list);
+	};
+
+	const parseNumber = (value: unknown, fallback: number) => {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : fallback;
+	};
+	const parseString = (value: unknown, fallback: string) => (typeof value === 'string' ? value : fallback);
+
+	for (const row of eventRows) {
+		const payload = (row.payload ?? {}) as Record<string, unknown>;
+		if (row.type === 'note') {
+			const noteIdRaw = payload.noteId ?? payload.id;
+			const noteId = Number.isFinite(Number(noteIdRaw)) ? Number(noteIdRaw) : null;
+			if (typeof noteId === 'number') noteIdsFromEvents.add(noteId);
+			const content = parseString(payload.content, '');
+			pushEvent(row.date, {
+				id: `event-${row.id}`,
+				type: 'note',
+				content,
+				noteId,
+				createdAt: row.createdAt,
+			});
+		} else if (row.type === 'checkin') {
+			const goalIdRaw = payload.goalId ?? row.goalId;
+			const goalId = Number.isFinite(Number(goalIdRaw)) ? Number(goalIdRaw) : null;
+			if (goalId === null) continue;
+			const meta = goalMetaMap.get(goalId);
+			const delta = parseNumber(payload.delta, 0);
+			const newCount = parseNumber(payload.newCount, byDate.get(row.date)?.get(goalId) ?? 0);
+			const target = parseNumber(payload.target, meta?.target ?? 0);
+			pushEvent(row.date, {
+				id: `event-${row.id}`,
+				type: 'checkin',
+				goalId,
+				goalTitle: parseString(payload.title, meta?.title ?? 'Goal'),
+				delta,
+				newCount,
+				icon: parseString(payload.icon, meta?.icon ?? 'Target'),
+				color: parseString(payload.color, meta?.color ?? '#10b981'),
+				target,
+				createdAt: row.createdAt,
+			});
+		} else if (row.type === 'goal_created' || row.type === 'goal_deleted') {
+			const goalId = Number.isFinite(Number(row.goalId)) ? Number(row.goalId) : null;
+			const meta = goalId ? goalMetaMap.get(goalId) : undefined;
+			pushEvent(row.date, {
+				id: `event-${row.id}`,
+				type: row.type,
+				goalId,
+				title: parseString(payload.title, meta?.title ?? 'Goal'),
+				icon: parseString(payload.icon, meta?.icon ?? 'Target'),
+				color: parseString(payload.color, meta?.color ?? '#10b981'),
+				createdAt: row.createdAt,
+			});
+		}
 	}
 
-	const parseTs = (value: string, fallback: string) => {
-		const parsed = Date.parse(value);
-		return Number.isNaN(parsed) ? Date.parse(fallback) : parsed;
-	};
+	for (const note of legacyNotes) {
+		if (noteIdsFromEvents.has(note.id)) continue;
+		pushEvent(note.date, {
+			id: `legacy-note-${note.id}`,
+			type: 'note',
+			content: note.content,
+			noteId: note.id,
+			createdAt: note.createdAt,
+		});
+	}
 
 	const daysData = dates
 		.map((date) => {
 			const dateMap = byDate.get(date) ?? new Map<number, number>();
+			const summaryForDate = summaryMap.get(date);
 			const items = goalRows
 				.map((goal) => ({
 					goalId: goal.id,
@@ -228,51 +476,101 @@ export const getTimelineData = async (
 				}))
 				.filter((item) => date === todayKey || item.count > 0);
 
-			const dateNotes = notesByDate.get(date) ?? [];
-			const allGoalsCompleted =
-				goalRows.length > 0 &&
-				goalRows.every((goal) => (dateMap.get(goal.id) ?? 0) >= goal.dailyTargetCount);
+			const allGoalsCompleted = summaryForDate
+				? summaryForDate.totalGoals > 0 && summaryForDate.completedGoals >= summaryForDate.totalGoals
+				: goalRows.length > 0 &&
+				  goalRows.every((goal) => (dateMap.get(goal.id) ?? 0) >= goal.dailyTargetCount);
 
-			const noteEvents: TimelineNoteEvent[] = dateNotes.map((note) => ({
-				type: 'note',
-				id: note.id,
-				content: note.content,
-				createdAt: note.createdAt,
-			}));
+			const eventList = eventsByDate.get(date) ?? [];
+			const summaryEvent: TimelineSummaryEvent = {
+				id: `summary-${date}`,
+				type: 'summary',
+				items,
+				allGoalsCompleted,
+				createdAt: `${date}T23:59:59.999Z`,
+			};
 
-			const events: TimelineEvent[] = [...noteEvents];
-			if (items.length > 0 || date === todayKey) {
-				events.push({
-					type: 'goals',
-					items,
-					allGoalsCompleted,
-				});
-			}
+			const extractNumericId = (value: string) => {
+				const numericPart = Number(value.replace(/^\D+/, ''));
+				return Number.isFinite(numericPart) ? numericPart : 0;
+			};
 
-			const sortedEvents = events
-				.map((event) => {
-					const ts =
-						event.type === 'note'
-							? parseTs(event.createdAt, `${date}T00:00:00Z`)
-							: Date.parse(`${date}T00:00:00Z`);
-					return { event, ts };
-				})
-				.sort((a, b) => b.ts - a.ts)
-				.map((item) => item.event);
+			const sortedEvents = [...eventList].sort((a, b) => {
+				const idA = extractNumericId(a.id);
+				const idB = extractNumericId(b.id);
+				if (idA !== idB) return idB - idA;
+				const ta = Date.parse(a.createdAt);
+				const tb = Date.parse(b.createdAt);
+				return tb - ta;
+			});
+
+			const finalEvents =
+				date !== todayKey && summaryForDate ? [summaryEvent, ...sortedEvents] : sortedEvents;
 
 			return {
 				date,
 				items,
 				allGoalsCompleted,
-				events: sortedEvents,
+				events: finalEvents,
 			};
 		})
-		.filter((day) => day.date === todayKey || day.items.length > 0 || day.events.some((e) => e.type === 'note'));
+		.filter(
+			(day) =>
+				day.date === todayKey ||
+				day.items.length > 0 ||
+				day.events.some((event) => event.type !== 'summary'),
+		);
 
-	const streak = goalRows.length ? computeTimelineStreak(goalRows, byDate, offsetMinutes) : 0;
+	const streak =
+		summaryData.length > 0
+			? computeSummaryStreak(summaryData, offsetMinutes)
+			: goalRows.length
+			  ? computeTimelineStreak(goalRows, byDate, offsetMinutes)
+			  : 0;
 	const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
 
 	return { days: daysData, streak, heatmap };
+};
+
+export const backfillDailySummaries = async (env: EnvWithD1, ctx?: TimeContext) => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
+	const db = getDb(env);
+
+	const earliestGoal = await db.select().from(goals).orderBy(goals.createdAt).limit(1);
+	if (!earliestGoal.length) return { upserted: 0 };
+
+	const firstGoalKey = toDateKey(earliestGoal[0].createdAt, offsetMinutes);
+	const yesterdayKey = toDateKey(addDaysUtc(startOfDayUtcMs(Date.now(), offsetMinutes), -1), offsetMinutes);
+
+	if (!firstGoalKey || firstGoalKey > yesterdayKey) return { upserted: 0 };
+
+	const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+	const goalIds = goalRows.map((g) => g.id);
+
+	const completions =
+		goalIds.length > 0
+			? await db
+					.select()
+					.from(goalCompletions)
+					.where(inArray(goalCompletions.goalId, goalIds))
+					.orderBy(goalCompletions.date)
+			: [];
+
+	const byDate = new Map<string, Map<number, number>>();
+	for (const completion of completions) {
+		const dateMap = byDate.get(completion.date) ?? new Map<number, number>();
+		dateMap.set(completion.goalId, (dateMap.get(completion.goalId) ?? 0) + completion.count);
+		byDate.set(completion.date, dateMap);
+	}
+
+	const dateKeys = buildDateRangeKeys(firstGoalKey, yesterdayKey);
+	const summaries = dateKeys
+		.map((date) => computeDailySummary(date, goalRows, byDate, offsetMinutes))
+		.filter((s): s is DailySummaryData => Boolean(s));
+
+	await upsertDailySummaries(env, summaries);
+
+	return { upserted: summaries.length };
 };
 
 export const getDashboardData = async (
@@ -315,6 +613,7 @@ export const createGoal = async (
 	env: EnvWithD1,
 	payload: { title: string; description?: string; dailyTargetCount: number; icon?: string; color?: string },
 ) => {
+	const { offsetMinutes } = resolveTimeContext();
 	const db = getDb(env);
 	const [inserted] = await db
 		.insert(goals)
@@ -326,6 +625,20 @@ export const createGoal = async (
 			color: payload.color?.trim() || '#10b981',
 		})
 		.returning();
+
+	const dateKey = toDateKey(Date.now(), offsetMinutes);
+	await logTimelineEvent(env, {
+		date: dateKey,
+		type: 'goal_created',
+		goalId: inserted.id,
+		payload: {
+			goalId: inserted.id,
+			title: inserted.title,
+			icon: inserted.icon,
+			color: inserted.color,
+		},
+		createdAt: inserted.createdAt,
+	});
 
 	return inserted;
 };
@@ -395,6 +708,8 @@ export const recordGoalCompletion = async (
 	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
 	const targetDate = (date?.trim?.() ?? '') || toDateKey(Date.now(), offsetMinutes);
+	const [goal] = await db.select().from(goals).where(eq(goals.id, goalId)).limit(1);
+	if (!goal) throw new Error('goal_not_found');
 	const [existing] = await db
 		.select()
 		.from(goalCompletions)
@@ -413,6 +728,22 @@ export const recordGoalCompletion = async (
 			count,
 		});
 	}
+
+	const newCount = (existing?.count ?? 0) + count;
+	await logTimelineEvent(env, {
+		date: targetDate,
+		type: 'checkin',
+		goalId,
+		payload: {
+			goalId,
+			delta: count,
+			newCount,
+			title: goal.title,
+			icon: goal.icon,
+			color: goal.color,
+			target: goal.dailyTargetCount,
+		},
+	});
 };
 
 export const createTimelineNote = async (env: EnvWithD1, content: string, date?: string, ctx?: TimeContext) => {
@@ -430,6 +761,13 @@ export const createTimelineNote = async (env: EnvWithD1, content: string, date?:
 		})
 		.returning();
 
+	await logTimelineEvent(env, {
+		date: targetDate,
+		type: 'note',
+		payload: { noteId: inserted.id, content: trimmed },
+		createdAt: inserted.createdAt,
+	});
+
 	return inserted;
 };
 
@@ -437,9 +775,34 @@ export const deleteTimelineNote = async (env: EnvWithD1, noteId: number) => {
 	const db = getDb(env);
 	if (!noteId) throw new Error('note_id_required');
 	await db.delete(timelineNotes).where(eq(timelineNotes.id, noteId));
+	await db
+		.delete(timelineEvents)
+		.where(
+			and(
+				eq(timelineEvents.type, 'note'),
+				eq(sql`json_extract(${timelineEvents.payload}, '$.noteId')`, noteId),
+			),
+		);
 };
 
-export const deleteGoal = async (env: EnvWithD1, goalId: number) => {
+export const deleteGoal = async (env: EnvWithD1, goalId: number, ctx?: TimeContext) => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
 	const db = getDb(env);
+	const [goal] = await db.select().from(goals).where(eq(goals.id, goalId)).limit(1);
 	await db.delete(goals).where(eq(goals.id, goalId));
+
+	if (goal) {
+		const dateKey = toDateKey(Date.now(), offsetMinutes);
+		await logTimelineEvent(env, {
+			date: dateKey,
+			type: 'goal_deleted',
+			goalId,
+			payload: {
+				goalId,
+				title: goal.title,
+				icon: goal.icon,
+				color: goal.color,
+			},
+		});
+	}
 };

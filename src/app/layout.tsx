@@ -45,9 +45,6 @@ export default function RootLayout({
 			</head>
 			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
 				<TimezoneSetter />
-				<div className="fixed right-4 top-4 z-50">
-					<LogoutButton />
-				</div>
 				{children}
 			</body>
 		</html>

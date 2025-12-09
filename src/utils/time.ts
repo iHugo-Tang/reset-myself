@@ -1,3 +1,8 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
+
 const TZ_COOKIE = 'tz';
 const TZ_OFFSET_COOKIE = 'tz_offset';
 const DEFAULT_TZ = 'UTC';
@@ -91,11 +96,17 @@ export const formatDateInTimeZone = (input: Date | number | string, timeZone: st
 };
 
 // Convert a UTC timestamp to the user's local date key (YYYY-MM-DD)
+const toUtcDayjs = (input: Date | number | string) => {
+	if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+		return dayjs.utc(`${input}T00:00:00Z`);
+	}
+	return dayjs.utc(input);
+};
+
 export const toDateKey = (input: Date | number | string, offsetMinutes = DEFAULT_OFFSET_MINUTES): string => {
-	const date = typeof input === 'string' ? new Date(input) : new Date(input);
-	if (Number.isNaN(date.getTime())) return '';
-	const localMs = date.getTime() + offsetMinutes * 60_000;
-	return new Date(localMs).toISOString().slice(0, 10);
+	const utcDate = toUtcDayjs(input);
+	if (!utcDate.isValid()) return '';
+	return utcDate.add(offsetMinutes, 'minute').format('YYYY-MM-DD');
 };
 
 export const getTodayKey = (offsetMinutes = DEFAULT_OFFSET_MINUTES): string => toDateKey(Date.now(), offsetMinutes);

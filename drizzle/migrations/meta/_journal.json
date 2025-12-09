@@ -36,6 +36,20 @@
       "when": 1765210000000,
       "tag": "0004_goal_icon_color",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1765220000000,
+      "tag": "0005_timeline_events",
+      "breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1765230000000,
+			"tag": "0006_daily_summaries",
+			"breakpoints": true
     }
   ]
 }
