@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { getDb, type EnvWithD1 } from './client';
 import {
   goalCompletions,
@@ -432,6 +432,88 @@ const buildDateRangeKeys = (startKey: string, endKey: string): string[] => {
   return keys;
 };
 
+const processTimelineRows = (
+  rows: TimelineEventRow[],
+  goalMetaMap: Map<number, { title: string; icon: string; color: string; target: number }>,
+  byDate: Map<string, Map<number, number>>
+): TimelineEvent[] => {
+  const parseNumber = (value: unknown, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const parseString = (value: unknown, fallback: string) =>
+    typeof value === 'string' ? value : fallback;
+
+  const events: TimelineEvent[] = [];
+
+  for (const row of rows) {
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    if (row.type === 'note') {
+      const noteIdRaw = payload.noteId ?? payload.id;
+      const noteId = Number.isFinite(Number(noteIdRaw))
+        ? Number(noteIdRaw)
+        : null;
+      const content = parseString(payload.content, '');
+      events.push({
+        id: `event-${row.id}`,
+        type: 'note',
+        content,
+        noteId,
+        createdAt: row.createdAt,
+      });
+    } else if (row.type === 'checkin') {
+      const goalIdRaw = payload.goalId ?? row.goalId;
+      const goalId = Number.isFinite(Number(goalIdRaw))
+        ? Number(goalIdRaw)
+        : null;
+      if (goalId === null) continue;
+      const meta = goalMetaMap.get(goalId);
+      const delta = parseNumber(payload.delta, 0);
+      const newCount = parseNumber(
+        payload.newCount,
+        byDate.get(row.date)?.get(goalId) ?? 0
+      );
+      const target = parseNumber(payload.target, meta?.target ?? 0);
+      events.push({
+        id: `event-${row.id}`,
+        type: 'checkin',
+        goalId,
+        goalTitle: parseString(payload.title, meta?.title ?? 'Goal'),
+        delta,
+        newCount,
+        icon: parseString(payload.icon, meta?.icon ?? 'Target'),
+        color: parseString(payload.color, meta?.color ?? '#10b981'),
+        target,
+        createdAt: row.createdAt,
+      });
+    } else if (row.type === 'goal_created' || row.type === 'goal_deleted') {
+      const goalId = Number.isFinite(Number(row.goalId))
+        ? Number(row.goalId)
+        : null;
+      const meta = goalId ? goalMetaMap.get(goalId) : undefined;
+      events.push({
+        id: `event-${row.id}`,
+        type: row.type,
+        goalId,
+        title: parseString(payload.title, meta?.title ?? 'Goal'),
+        icon: parseString(payload.icon, meta?.icon ?? 'Target'),
+        color: parseString(payload.color, meta?.color ?? '#10b981'),
+        createdAt: row.createdAt,
+      });
+    } else if (row.type === 'summary') {
+      events.push({
+        id: `event-${row.id}`,
+        type: 'summary',
+        items: (payload.items as TimelineItem[]) ?? [],
+        allGoalsCompleted: !!payload.allGoalsCompleted,
+        createdAt: row.createdAt,
+      });
+    }
+  }
+
+  return events;
+};
+
 export const getTimelineData = async (
   env: EnvWithD1,
   days = 91,
@@ -529,7 +611,9 @@ export const getTimelineData = async (
   const noteIdsFromEvents = new Set<number>();
   const eventsByDate = new Map<string, TimelineEvent[]>();
 
-  const pushEvent = (date: string, event: TimelineEvent) => {
+  // RESTORING ORIGINAL LOOP FOR SAFETY in getTimelineData
+    
+  const pushEventOriginal = (date: string, event: TimelineEvent) => {
     const list = eventsByDate.get(date) ?? [];
     list.push(event);
     eventsByDate.set(date, list);
@@ -551,7 +635,7 @@ export const getTimelineData = async (
         : null;
       if (typeof noteId === 'number') noteIdsFromEvents.add(noteId);
       const content = parseString(payload.content, '');
-      pushEvent(row.date, {
+      pushEventOriginal(row.date, {
         id: `event-${row.id}`,
         type: 'note',
         content,
@@ -571,7 +655,7 @@ export const getTimelineData = async (
         byDate.get(row.date)?.get(goalId) ?? 0
       );
       const target = parseNumber(payload.target, meta?.target ?? 0);
-      pushEvent(row.date, {
+      pushEventOriginal(row.date, {
         id: `event-${row.id}`,
         type: 'checkin',
         goalId,
@@ -588,7 +672,7 @@ export const getTimelineData = async (
         ? Number(row.goalId)
         : null;
       const meta = goalId ? goalMetaMap.get(goalId) : undefined;
-      pushEvent(row.date, {
+      pushEventOriginal(row.date, {
         id: `event-${row.id}`,
         type: row.type,
         goalId,
@@ -598,7 +682,7 @@ export const getTimelineData = async (
         createdAt: row.createdAt,
       });
     } else if (row.type === 'summary') {
-      pushEvent(row.date, {
+      pushEventOriginal(row.date, {
         id: `event-${row.id}`,
         type: 'summary',
         items: (payload.items as TimelineItem[]) ?? [],
@@ -610,7 +694,7 @@ export const getTimelineData = async (
 
   for (const note of legacyNotes) {
     if (noteIdsFromEvents.has(note.id)) continue;
-    pushEvent(note.date, {
+    pushEventOriginal(note.date, {
       id: `legacy-note-${note.id}`,
       type: 'note',
       content: note.content,
@@ -1035,4 +1119,176 @@ export const deleteGoal = async (
   }
 
   await db.delete(goals).where(eq(goals.id, goalId));
+};
+
+export const getTimelineEventsInfinite = async (
+  env: EnvWithD1,
+  limit = 20,
+  cursor?: string
+) => {
+  const db = getDb(env);
+
+  const goalRows = await db.select().from(goals);
+  const goalMetaMap = new Map(
+    goalRows.map((goal) => [
+      goal.id,
+      {
+        title: goal.title,
+        icon: goal.icon,
+        color: goal.color,
+        target: goal.dailyTargetCount,
+      },
+    ])
+  );
+
+  let query = db
+    .select()
+    .from(timelineEvents)
+    .orderBy(
+      desc(timelineEvents.date),
+      desc(timelineEvents.createdAt),
+      desc(timelineEvents.id)
+    )
+    .limit(limit + 1);
+
+  if (cursor) {
+    try {
+      const [cDate, cCreatedAt, cIdStr] = Buffer.from(cursor, 'base64')
+        .toString()
+        .split('|');
+      const cId = Number(cIdStr);
+
+      if (cDate && cCreatedAt && !isNaN(cId)) {
+        query = query.where(
+          or(
+            lt(timelineEvents.date, cDate),
+            and(
+              eq(timelineEvents.date, cDate),
+              lt(timelineEvents.createdAt, cCreatedAt)
+            ),
+            and(
+              eq(timelineEvents.date, cDate),
+              eq(timelineEvents.createdAt, cCreatedAt),
+              lt(timelineEvents.id, cId)
+            )
+            )
+        ) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      }
+    } catch (e) {
+      console.warn('Invalid cursor', cursor, e);
+    }
+  }
+
+  const rows = await query;
+  const hasMore = rows.length > limit;
+  const slicedRows = hasMore ? rows.slice(0, limit) : rows;
+
+  const events = await processTimelineRows(slicedRows, goalMetaMap, new Map());
+
+  let nextCursor: string | null = null;
+  if (hasMore && slicedRows.length > 0) {
+    const last = slicedRows[slicedRows.length - 1];
+    nextCursor = Buffer.from(
+      `${last.date}|${last.createdAt}|${last.id}`
+    ).toString('base64');
+  }
+
+  return { events, nextCursor };
+};
+
+export const getTimelineStats = async (
+  env: EnvWithD1,
+  days = 91,
+  ctx?: TimeContext
+) => {
+  const { offsetMinutes } = resolveTimeContext(ctx);
+  const db = getDb(env);
+  const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalIds = goalRows.map((g) => g.id);
+
+  const completions = goalIds.length
+    ? await db
+        .select()
+        .from(goalCompletions)
+        .where(inArray(goalCompletions.goalId, goalIds))
+        .orderBy(goalCompletions.date)
+    : [];
+
+  const byDate = new Map<string, Map<number, number>>();
+  for (const completion of completions) {
+    const dateMap = byDate.get(completion.date) ?? new Map<number, number>();
+    dateMap.set(
+      completion.goalId,
+      (dateMap.get(completion.goalId) ?? 0) + completion.count
+    );
+    byDate.set(completion.date, dateMap);
+  }
+
+  const summaryDataRaw = await db
+    .select()
+    .from(dailySummaries)
+    .orderBy(desc(dailySummaries.date))
+    .limit(days);
+    
+  const summaryData: DailySummaryData[] = summaryDataRaw.map(row => ({
+    date: row.date,
+    totalGoals: row.totalGoals,
+    completedGoals: row.completedGoals,
+    successRate: row.successRate,
+  }));
+
+  const streak =
+    summaryData.length > 0
+      ? computeSummaryStreak(summaryData, offsetMinutes)
+      : goalRows.length
+        ? computeTimelineStreak(goalRows, byDate, offsetMinutes)
+        : 0;
+        
+  const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
+  
+  return { streak, heatmap };
+};
+
+export const getTodayStatus = async (env: EnvWithD1, ctx?: TimeContext) => {
+  const { offsetMinutes } = resolveTimeContext(ctx);
+  const db = getDb(env);
+  const todayKey = toDateKey(
+    startOfDayUtcMs(Date.now(), offsetMinutes),
+    offsetMinutes
+  );
+
+  const goalsList = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const activeGoals = goalsList.filter((g) => {
+    const createdKey = toDateKey(g.createdAt, offsetMinutes);
+    return createdKey && createdKey <= todayKey;
+  });
+
+  if (activeGoals.length === 0) return [];
+
+  const completions = await db
+    .select()
+    .from(goalCompletions)
+    .where(
+      and(
+        eq(goalCompletions.date, todayKey),
+        inArray(
+          goalCompletions.goalId,
+          activeGoals.map((g) => g.id)
+        )
+      )
+    );
+
+  const completionMap = new Map<number, number>();
+  for (const c of completions) {
+    completionMap.set(c.goalId, (completionMap.get(c.goalId) ?? 0) + c.count);
+  }
+
+  return activeGoals.map((g) => ({
+    goalId: g.id,
+    title: g.title,
+    target: g.dailyTargetCount,
+    count: completionMap.get(g.id) ?? 0,
+    icon: g.icon,
+    color: g.color,
+  }));
 };
