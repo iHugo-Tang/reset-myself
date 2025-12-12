@@ -308,4 +308,43 @@ it('updates goal without optional payload fields', async () => {
 	expect(updated.color).toBe('#aaa');
 		teardown();
 	});
+
+	it('generates summary events when all goals completed', async () => {
+		const db = await setup();
+		const goal1 = await createGoal(env, { title: 'G1', dailyTargetCount: 1 });
+		const goal2 = await createGoal(env, { title: 'G2', dailyTargetCount: 1 });
+
+		// Complete one goal - no summary
+		await recordGoalCompletion(env, goal1.id, 1, '2024-02-11');
+		let events = await db
+			.select()
+			.from(timelineEvents)
+			.where(and(eq(timelineEvents.date, '2024-02-11'), eq(timelineEvents.type, 'summary')));
+		expect(events).toHaveLength(0);
+
+		// Complete second goal - summary created
+		await recordGoalCompletion(env, goal2.id, 1, '2024-02-11');
+		events = await db
+			.select()
+			.from(timelineEvents)
+			.where(and(eq(timelineEvents.date, '2024-02-11'), eq(timelineEvents.type, 'summary')));
+		expect(events).toHaveLength(1);
+		expect(events[0].payload).toMatchObject({ allGoalsCompleted: true });
+
+		// Check getTimelineData uses it
+		const timeline = await getTimelineData(env, 1, { offsetMinutes: 0 });
+		const summaryEvent = timeline.days[0].events.find((e) => e.type === 'summary');
+		expect(summaryEvent).toBeDefined();
+		expect(summaryEvent?.id).toMatch(/^event-/);
+
+		// Un-complete a goal - summary should be removed
+		await recordGoalCompletion(env, goal2.id, -1, '2024-02-11');
+		events = await db
+			.select()
+			.from(timelineEvents)
+			.where(and(eq(timelineEvents.date, '2024-02-11'), eq(timelineEvents.type, 'summary')));
+		expect(events).toHaveLength(0);
+
+		teardown();
+	});
 });

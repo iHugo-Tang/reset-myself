@@ -107,7 +107,7 @@ const resolveTimeContext = (ctx?: TimeContext) => ({
 
 type LogEventInput = {
 	date: string;
-	type: Exclude<TimelineEventType, 'summary'>;
+	type: TimelineEventType;
 	goalId?: number | null;
 	payload?: Record<string, unknown> | null;
 	createdAt?: string;
@@ -121,6 +121,68 @@ const logTimelineEvent = async (env: EnvWithD1, input: LogEventInput) => {
 		goalId: input.goalId ?? null,
 		payload: input.payload ?? null,
 		createdAt: input.createdAt ?? new Date().toISOString(),
+	});
+};
+
+const checkAndLogSummaryEvent = async (env: EnvWithD1, dateKey: string, ctx?: TimeContext) => {
+	const { offsetMinutes } = resolveTimeContext(ctx);
+	const db = getDb(env);
+
+	// Get all goals created on or before this date
+	const goalsList = await db.select().from(goals).orderBy(desc(goals.createdAt));
+	const activeGoals = goalsList.filter((g) => {
+		const createdKey = toDateKey(g.createdAt, offsetMinutes);
+		return createdKey && createdKey <= dateKey;
+	});
+
+	if (activeGoals.length === 0) return;
+
+	// Get completions for this date
+	const completions = await db
+		.select()
+		.from(goalCompletions)
+		.where(and(eq(goalCompletions.date, dateKey), inArray(goalCompletions.goalId, activeGoals.map(g => g.id))));
+
+	const completionMap = new Map<number, number>();
+	for (const c of completions) {
+		completionMap.set(c.goalId, (completionMap.get(c.goalId) ?? 0) + c.count);
+	}
+
+	const items = activeGoals.map((g) => ({
+		goalId: g.id,
+		title: g.title,
+		target: g.dailyTargetCount,
+		count: completionMap.get(g.id) ?? 0,
+		icon: g.icon,
+		color: g.color,
+	}));
+
+	const allGoalsCompleted = activeGoals.every((g) => (completionMap.get(g.id) ?? 0) >= g.dailyTargetCount);
+
+	// If strictly only logging when all completed (for real-time):
+	if (!allGoalsCompleted) {
+		// If we want to remove existing summary if it became incomplete, we should do that.
+		// For now, let's just delete any existing summary for this date to ensure correctness
+		// (e.g. if user unchecked an item, the "all completed" summary is no longer valid).
+		await db
+			.delete(timelineEvents)
+			.where(and(eq(timelineEvents.date, dateKey), eq(timelineEvents.type, 'summary')));
+		return;
+	}
+
+	// Upsert summary event
+	// First delete existing to avoid duplicates (simplest upsert for this event log model)
+	await db
+		.delete(timelineEvents)
+		.where(and(eq(timelineEvents.date, dateKey), eq(timelineEvents.type, 'summary')));
+
+	await logTimelineEvent(env, {
+		date: dateKey,
+		type: 'summary',
+		payload: {
+			items,
+			allGoalsCompleted,
+		},
 	});
 };
 
@@ -448,6 +510,14 @@ export const getTimelineData = async (
 				color: parseString(payload.color, meta?.color ?? '#10b981'),
 				createdAt: row.createdAt,
 			});
+		} else if (row.type === 'summary') {
+			pushEvent(row.date, {
+				id: `event-${row.id}`,
+				type: 'summary',
+				items: (payload.items as TimelineItem[]) ?? [],
+				allGoalsCompleted: !!payload.allGoalsCompleted,
+				createdAt: row.createdAt,
+			});
 		}
 	}
 
@@ -507,8 +577,11 @@ export const getTimelineData = async (
 				return tb - ta;
 			});
 
+			const hasPersistedSummary = sortedEvents.some((e) => e.type === 'summary');
 			const finalEvents =
-				date !== todayKey && summaryForDate ? [summaryEvent, ...sortedEvents] : sortedEvents;
+				date !== todayKey && summaryForDate && !hasPersistedSummary
+					? [summaryEvent, ...sortedEvents]
+					: sortedEvents;
 
 			return {
 				date,
@@ -748,6 +821,8 @@ export const recordGoalCompletion = async (
 			target: goal.dailyTargetCount,
 		},
 	});
+
+	await checkAndLogSummaryEvent(env, targetDate, ctx);
 };
 
 export const createTimelineNote = async (env: EnvWithD1, content: string, date?: string, ctx?: TimeContext) => {
