@@ -35,7 +35,7 @@ describe('API routes', () => {
     await okServer.close();
 
     const goalsModule = await import('@/db/goals');
-    vi.spyOn(goalsModule, 'getTimelineData').mockRejectedValueOnce(
+    vi.spyOn(goalsModule, 'getTimelineEventsInfinite').mockRejectedValueOnce(
       new Error('boom')
     );
     const errorServer = createRouteTester(GET);
