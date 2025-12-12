@@ -2,50 +2,26 @@ import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 import CheckinPanel from '@/app/timeline/CheckinPanel';
 import TimelineComposer from '@/app/timeline/TimelineComposer';
 import { StreakBadge } from '@/app/timeline/StreakBadge';
 import { HeatmapCard } from '@/app/timeline/HeatmapCard';
-import { DayCard } from '@/app/timeline/DayCard';
+import TimelineFeed from '@/app/timeline/TimelineFeed';
 
-import type { TimelineData } from '@/db/goals';
+import {
+  getTimelineEventsInfinite,
+  getTimelineStats,
+  getTodayStatus,
+  type TimelineDay,
+} from '@/db/goals';
+import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
 
 export const dynamic = 'force-dynamic';
 
-const getBaseUrl = async () => {
-  const h = await headers();
-  const host = h.get('x-forwarded-host') ?? h.get('host');
-  const protocol =
-    host?.includes('localhost') || host?.includes('127.0.0.1')
-      ? 'http'
-      : (h.get('x-forwarded-proto') ?? 'https');
-  return host ? `${protocol}://${host}` : '';
-};
-
-const fetchTimelineData = async (
-  offsetMinutes: number
-): Promise<TimelineData> => {
-  try {
-    const baseUrl = await getBaseUrl();
-    const headerList = await headers();
-    const cookieHeader = headerList.get('cookie') ?? '';
-    const res = await fetch(
-      `${baseUrl}/api/timeline?tz_offset=${offsetMinutes}`,
-      {
-        cache: 'no-store',
-        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-      }
-    );
-    if (!res.ok) return { days: [], streak: 0, heatmap: [] };
-    const json = (await res.json()) as { data?: TimelineData };
-    return json.data ?? { days: [], streak: 0, heatmap: [] };
-  } catch (error) {
-    console.error('fetchTimelineData error', error);
-    return { days: [], streak: 0, heatmap: [] };
-  }
-};
+const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 export const metadata: Metadata = {
   title: 'Timeline | Reset Myself',
@@ -59,9 +35,24 @@ export default async function TimelinePage() {
     cookies: cookieStore,
     cookieHeader: headerList.get('cookie'),
   });
-  const timeline = await fetchTimelineData(timeSettings.offsetMinutes);
-  const today = toDateKey(Date.now(), timeSettings.offsetMinutes);
-  const todayData = timeline.days.find((day) => day.date === today);
+
+  const env = getEnv();
+
+  const [eventsData, stats, todayItems] = await Promise.all([
+    getTimelineEventsInfinite(env, 20),
+    getTimelineStats(env, 90, { offsetMinutes: timeSettings.offsetMinutes }),
+    getTodayStatus(env, { offsetMinutes: timeSettings.offsetMinutes }),
+  ]);
+
+  const todayKey = toDateKey(Date.now(), timeSettings.offsetMinutes);
+
+  const todayDay: TimelineDay = {
+    date: todayKey,
+    items: todayItems,
+    allGoalsCompleted:
+      todayItems.length > 0 && todayItems.every((i) => i.count >= i.target),
+    events: [],
+  };
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-slate-100">
@@ -99,35 +90,23 @@ export default async function TimelinePage() {
 
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
           <div className="space-y-4 lg:order-2 lg:col-span-1">
-            <StreakBadge streak={timeline.streak} />
+            <StreakBadge streak={stats.streak} />
             <HeatmapCard
-              heatmap={timeline.heatmap}
+              heatmap={stats.heatmap}
               offsetMinutes={timeSettings.offsetMinutes}
             />
-            {todayData ? <CheckinPanel day={todayData} today={today} /> : null}
+            {todayItems.length > 0 ? (
+              <CheckinPanel day={todayDay} today={todayKey} />
+            ) : null}
           </div>
 
           <div className="space-y-6 lg:order-1 lg:col-span-2">
             <TimelineComposer />
-            {timeline.days.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-slate-800 bg-[#0b1017] p-8 text-center text-slate-500">
-                No data yet; create a goal and start checking in.
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-3xl border border-slate-900/70 bg-[#0b1017] shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
-                <div className="divide-y divide-slate-900/70">
-                  {timeline.days.map((day, idx) => (
-                    <DayCard
-                      key={day.date}
-                      day={day}
-                      today={today}
-                      isFirst={idx === 0}
-                      timeZone={timeSettings.timeZone}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            <TimelineFeed
+              initialEvents={eventsData.events}
+              initialNextCursor={eventsData.nextCursor}
+              timeZone={timeSettings.timeZone}
+            />
           </div>
         </div>
       </div>

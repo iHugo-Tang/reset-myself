@@ -1,6 +1,6 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getTimelineData } from '@/db/goals';
+import { getTimelineEventsInfinite, getTimelineStats } from '@/db/goals';
 import { resolveRequestTimeSettings } from '@/utils/time';
 import type { EnvWithD1 } from '@/db/client';
 
@@ -8,9 +8,8 @@ const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const daysRaw = Number(url.searchParams.get('days'));
-  const days =
-    Number.isFinite(daysRaw) && daysRaw > 0 ? Math.floor(daysRaw) : 30;
+  const cursor = url.searchParams.get('cursor') ?? undefined;
+  const limit = 20;
 
   const tzOffsetRaw = Number(url.searchParams.get('tz_offset'));
   const cookieSettings = resolveRequestTimeSettings({
@@ -22,8 +21,27 @@ export async function GET(request: NextRequest) {
     : cookieSettings.offsetMinutes;
 
   try {
-    const data = await getTimelineData(getEnv(), days, { offsetMinutes });
-    return NextResponse.json({ success: true, data });
+    const { events, nextCursor } = await getTimelineEventsInfinite(
+      getEnv(),
+      limit,
+      cursor
+    );
+
+    let stats = null;
+    if (!cursor) {
+      // Only fetch stats on initial load
+      stats = await getTimelineStats(getEnv(), 90, { offsetMinutes });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        events,
+        nextCursor,
+        streak: stats?.streak ?? 0,
+        heatmap: stats?.heatmap ?? [],
+      },
+    });
   } catch (error) {
     console.error('GET /api/timeline error', error);
     return NextResponse.json(
