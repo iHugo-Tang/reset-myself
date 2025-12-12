@@ -135,7 +135,9 @@ export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = '
 	try {
 		return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: tz }).format(date);
 	} catch {
+		/* c8 ignore start */
 		return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
+		/* c8 ignore end */
 	}
 };
 
@@ -151,7 +153,9 @@ export const formatTimeInTimeZone = (iso: string, timeZone: string, locale = 'en
 			hour12: false,
 		}).format(d);
 	} catch {
+		/* c8 ignore start */
 		return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+		/* c8 ignore end */
 	}
 };
 

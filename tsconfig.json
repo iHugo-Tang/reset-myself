@@ -22,12 +22,11 @@
 			"@/*": ["./src/*"]
 		},
 		"types": [
+			"vitest/globals",
 			"./cloudflare-env.d.ts",
-			"./cloudflare-env.d.ts",
-			"node",
 			"node"
 		]
 	},
 	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules", "cypress"]
 }

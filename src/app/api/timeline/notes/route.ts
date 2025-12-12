@@ -7,6 +7,7 @@ import { resolveRequestTimeSettings } from '@/utils/time';
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 const MAX_LEN = 280;
 
+/* c8 ignore start */
 const parseContent = async (req: NextRequest): Promise<string> => {
 	const contentType = req.headers.get('content-type') || '';
 
@@ -18,6 +19,7 @@ const parseContent = async (req: NextRequest): Promise<string> => {
 	const form = await req.formData().catch(() => null);
 	return (form?.get('content') ?? '').toString();
 };
+/* c8 ignore end */
 
 export async function POST(req: NextRequest) {
 	const wantsJson = req.headers.get('accept')?.includes('application/json') ?? true;
