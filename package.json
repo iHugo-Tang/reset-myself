@@ -9,7 +9,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"test:ci": "vitest run --runInBand --reporter=junit",
+		"test:ci": "vitest run --pool=threads --no-file-parallelism --reporter=default --reporter=junit --outputFile.junit=./junit.xml --silent=passed-only --no-color",
 		"test:component": "cypress run --component",
 		"test:all": "pnpm lint && pnpm test && pnpm test:e2e",
 		"test:e2e": "cypress run --browser electron --headless",
