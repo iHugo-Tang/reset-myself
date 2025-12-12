@@ -1,59 +1,59 @@
 {
-	"days": [
-		{
-			"date": "2024-02-10",
-			"items": [
-				{
-					"goalId": 1,
-					"title": "Run",
-					"target": 1,
-					"count": 1,
-					"icon": "Target",
-					"color": "#10b981"
-				}
-			],
-			"allGoalsCompleted": true,
-			"events": [
-				{
-					"id": "summary-2024-02-10",
-					"type": "summary",
-					"items": [
-						{
-							"goalId": 1,
-							"title": "Run",
-							"target": 1,
-							"count": 1,
-							"icon": "Target",
-							"color": "#10b981"
-						}
-					],
-					"allGoalsCompleted": true,
-					"createdAt": "2024-02-10T23:59:59.999Z"
-				},
-				{
-					"id": "event-1",
-					"type": "goal_created",
-					"goalId": 1,
-					"title": "Run",
-					"icon": "Target",
-					"color": "#10b981",
-					"createdAt": "2024-02-10T12:00:00Z"
-				},
-				{
-					"id": "event-2",
-					"type": "checkin",
-					"goalId": 1,
-					"goalTitle": "Run",
-					"delta": 1,
-					"newCount": 1,
-					"icon": "Target",
-					"color": "#10b981",
-					"target": 1,
-					"createdAt": "2024-02-10T13:00:00Z"
-				}
-			]
-		}
-	],
-	"streak": 1,
-	"heatmap": [{ "date": "2024-02-10", "count": 1 }]
+  "days": [
+    {
+      "date": "2024-02-10",
+      "items": [
+        {
+          "goalId": 1,
+          "title": "Run",
+          "target": 1,
+          "count": 1,
+          "icon": "Target",
+          "color": "#10b981"
+        }
+      ],
+      "allGoalsCompleted": true,
+      "events": [
+        {
+          "id": "summary-2024-02-10",
+          "type": "summary",
+          "items": [
+            {
+              "goalId": 1,
+              "title": "Run",
+              "target": 1,
+              "count": 1,
+              "icon": "Target",
+              "color": "#10b981"
+            }
+          ],
+          "allGoalsCompleted": true,
+          "createdAt": "2024-02-10T23:59:59.999Z"
+        },
+        {
+          "id": "event-1",
+          "type": "goal_created",
+          "goalId": 1,
+          "title": "Run",
+          "icon": "Target",
+          "color": "#10b981",
+          "createdAt": "2024-02-10T12:00:00Z"
+        },
+        {
+          "id": "event-2",
+          "type": "checkin",
+          "goalId": 1,
+          "goalTitle": "Run",
+          "delta": 1,
+          "newCount": 1,
+          "icon": "Target",
+          "color": "#10b981",
+          "target": 1,
+          "createdAt": "2024-02-10T13:00:00Z"
+        }
+      ]
+    }
+  ],
+  "streak": 1,
+  "heatmap": [{ "date": "2024-02-10", "count": 1 }]
 }

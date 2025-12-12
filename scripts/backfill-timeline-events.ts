@@ -69,26 +69,26 @@ WHERE NOT EXISTS (
 `;
 
 const run = () => {
-	const args = [
-		'd1',
-		'execute',
-		TARGET_DB,
-		isRemote ? '--remote' : '--local',
-		'--command',
-		SQL,
-	];
+  const args = [
+    'd1',
+    'execute',
+    TARGET_DB,
+    isRemote ? '--remote' : '--local',
+    '--command',
+    SQL,
+  ];
 
-	console.log(
-		`Backfilling timeline_events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`
-	);
-	const result = spawnSync('wrangler', args, { stdio: 'inherit' });
+  console.log(
+    `Backfilling timeline_events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`
+  );
+  const result = spawnSync('wrangler', args, { stdio: 'inherit' });
 
-	if (result.status !== 0) {
-		console.error('Backfill failed.');
-		process.exit(result.status ?? 1);
-	}
+  if (result.status !== 0) {
+    console.error('Backfill failed.');
+    process.exit(result.status ?? 1);
+  }
 
-	console.log('Backfill completed.');
+  console.log('Backfill completed.');
 };
 
 run();

@@ -6,8 +6,8 @@ const isRemote = process.argv.includes('--remote');
 const offsetArg = process.argv.find((arg) => arg.startsWith('--tz-offset='));
 const parsedOffset = offsetArg ? Number(offsetArg.split('=')[1]) : 0;
 const offsetMinutes = Number.isFinite(parsedOffset)
-	? Math.round(parsedOffset)
-	: 0;
+  ? Math.round(parsedOffset)
+  : 0;
 const offsetSql = `${offsetMinutes >= 0 ? '+' : ''}${offsetMinutes} minutes`;
 
 const SQL = `
@@ -61,26 +61,26 @@ ON CONFLICT(date) DO UPDATE SET
 `;
 
 const run = () => {
-	const args = [
-		'd1',
-		'execute',
-		TARGET_DB,
-		isRemote ? '--remote' : '--local',
-		'--command',
-		SQL,
-	];
-	console.log(
-		`Backfilling daily_summaries into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'}), tz offset ${offsetMinutes} minutes...`
-	);
+  const args = [
+    'd1',
+    'execute',
+    TARGET_DB,
+    isRemote ? '--remote' : '--local',
+    '--command',
+    SQL,
+  ];
+  console.log(
+    `Backfilling daily_summaries into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'}), tz offset ${offsetMinutes} minutes...`
+  );
 
-	const result = spawnSync('wrangler', args, { stdio: 'inherit' });
+  const result = spawnSync('wrangler', args, { stdio: 'inherit' });
 
-	if (result.status !== 0) {
-		console.error('Backfill failed.');
-		process.exit(result.status ?? 1);
-	}
+  if (result.status !== 0) {
+    console.error('Backfill failed.');
+    process.exit(result.status ?? 1);
+  }
 
-	console.log('Backfill completed.');
+  console.log('Backfill completed.');
 };
 
 run();
