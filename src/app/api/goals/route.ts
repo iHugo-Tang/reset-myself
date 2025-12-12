@@ -8,12 +8,20 @@ const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 export async function GET(req: NextRequest) {
 	try {
-		const time = resolveRequestTimeSettings({ cookies: req.cookies, cookieHeader: req.headers.get('cookie') });
-		const data = await getDashboardData(getEnv(), 90, { offsetMinutes: time.offsetMinutes });
+		const time = resolveRequestTimeSettings({
+			cookies: req.cookies,
+			cookieHeader: req.headers.get('cookie'),
+		});
+		const data = await getDashboardData(getEnv(), 90, {
+			offsetMinutes: time.offsetMinutes,
+		});
 		return NextResponse.json({ success: true, data });
 	} catch (error) {
 		console.error('GET /api/goals error', error);
-		return NextResponse.json({ success: false, message: 'Failed to fetch goals' }, { status: 500 });
+		return NextResponse.json(
+			{ success: false, message: 'Failed to fetch goals' },
+			{ status: 500 }
+		);
 	}
 }
 
@@ -22,11 +30,15 @@ export async function POST(req: NextRequest) {
 	const title = (formData.get('title') || '').toString().trim();
 	const description = (formData.get('description') || '').toString().trim();
 	const dailyTargetRaw = Number(formData.get('dailyTargetCount') ?? 1);
-	const dailyTargetCount = Number.isFinite(dailyTargetRaw) && dailyTargetRaw > 0 ? Math.floor(dailyTargetRaw) : 1;
+	const dailyTargetCount =
+		Number.isFinite(dailyTargetRaw) && dailyTargetRaw > 0
+			? Math.floor(dailyTargetRaw)
+			: 1;
 	const icon = (formData.get('icon') || '').toString().trim();
 	const color = (formData.get('color') || '').toString().trim();
 
-	const redirect = (suffix: string) => NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, req.url));
+	const redirect = (suffix: string) =>
+		NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, req.url));
 
 	if (!title) {
 		return redirect('?error=title_required');

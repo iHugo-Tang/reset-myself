@@ -7,8 +7,16 @@ type GoalSeed = {
 };
 
 const GOALS: GoalSeed[] = [
-	{ title: 'Daily Reading', description: 'Read for 30 minutes', dailyTargetCount: 1 },
-	{ title: 'Morning Run', description: 'Run or brisk walk 2km', dailyTargetCount: 1 },
+	{
+		title: 'Daily Reading',
+		description: 'Read for 30 minutes',
+		dailyTargetCount: 1,
+	},
+	{
+		title: 'Morning Run',
+		description: 'Run or brisk walk 2km',
+		dailyTargetCount: 1,
+	},
 ];
 
 const DAYS = 30;
@@ -37,7 +45,7 @@ const buildSeedSql = () => {
 		lines.push(
 			`INSERT INTO goals (title, description, daily_target_count)
 SELECT '${title}', '${description}', ${goal.dailyTargetCount}
-WHERE NOT EXISTS (SELECT 1 FROM goals WHERE title = '${title}');`,
+WHERE NOT EXISTS (SELECT 1 FROM goals WHERE title = '${title}');`
 		);
 
 		for (let i = 0; i < DAYS; i++) {
@@ -49,7 +57,7 @@ WHERE NOT EXISTS (SELECT 1 FROM goals WHERE title = '${title}');`,
 			lines.push(
 				`INSERT INTO goal_completions (goal_id, date, count)
 SELECT id, '${dateStr}', ${count} FROM goals WHERE title = '${title}'
-ON CONFLICT(goal_id, date) DO UPDATE SET count = excluded.count;`,
+ON CONFLICT(goal_id, date) DO UPDATE SET count = excluded.count;`
 			);
 		}
 	}
@@ -59,9 +67,18 @@ ON CONFLICT(goal_id, date) DO UPDATE SET count = excluded.count;`,
 
 const run = () => {
 	const sql = buildSeedSql();
-	const args = ['d1', 'execute', TARGET_DB, isRemote ? '--remote' : '--local', '--command', sql];
+	const args = [
+		'd1',
+		'execute',
+		TARGET_DB,
+		isRemote ? '--remote' : '--local',
+		'--command',
+		sql,
+	];
 
-	console.log(`Seeding D1 database "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`);
+	console.log(
+		`Seeding D1 database "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`
+	);
 	const result = spawnSync('wrangler', args, { stdio: 'inherit' });
 
 	if (result.status !== 0) {

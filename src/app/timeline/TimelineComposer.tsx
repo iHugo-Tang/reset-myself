@@ -32,7 +32,9 @@ export default function TimelineComposer() {
 			});
 
 			if (!res.ok) {
-				const json = (await res.json().catch(() => null)) as { message?: string } | null;
+				const json = (await res.json().catch(() => null)) as {
+					message?: string;
+				} | null;
 				setError(json?.message ?? 'Unable to save. Please try again soon.');
 				return;
 			}
@@ -58,16 +60,21 @@ export default function TimelineComposer() {
 						value={value}
 						onChange={(e) => setValue(e.target.value.slice(0, MAX_LEN))}
 						placeholder="What's on your mind: thoughts, status, or inspiration?"
-						className="h-24 w-full resize-none rounded-2xl border border-slate-800 bg-[#0b1017] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-700/70"
+						className="h-24 w-full resize-none rounded-2xl border border-slate-800 bg-[#0b1017] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-600 focus:ring-2 focus:ring-sky-700/70 focus:outline-none"
 						aria-label="Write your update"
 						maxLength={MAX_LEN}
 					/>
 					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 						<div className="text-sm text-slate-500">
-							<span className={remaining < 20 ? 'text-amber-300' : ''}>{remaining}</span> / {MAX_LEN}
+							<span className={remaining < 20 ? 'text-amber-300' : ''}>
+								{remaining}
+							</span>{' '}
+							/ {MAX_LEN}
 						</div>
 						<div className="flex items-center gap-3">
-							{error ? <span className="text-sm text-amber-300">{error}</span> : null}
+							{error ? (
+								<span className="text-sm text-amber-300">{error}</span>
+							) : null}
 							<button
 								type="button"
 								disabled={disabled}

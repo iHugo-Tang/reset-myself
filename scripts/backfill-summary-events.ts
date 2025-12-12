@@ -5,7 +5,9 @@ const isRemote = process.argv.includes('--remote');
 
 const offsetArg = process.argv.find((arg) => arg.startsWith('--tz-offset='));
 const parsedOffset = offsetArg ? Number(offsetArg.split('=')[1]) : 0;
-const offsetMinutes = Number.isFinite(parsedOffset) ? Math.round(parsedOffset) : 0;
+const offsetMinutes = Number.isFinite(parsedOffset)
+	? Math.round(parsedOffset)
+	: 0;
 const offsetSql = `${offsetMinutes >= 0 ? '+' : ''}${offsetMinutes} minutes`;
 
 const SQL = `
@@ -71,9 +73,16 @@ WHERE NOT EXISTS (
 `;
 
 const run = () => {
-	const args = ['d1', 'execute', TARGET_DB, isRemote ? '--remote' : '--local', '--command', SQL];
+	const args = [
+		'd1',
+		'execute',
+		TARGET_DB,
+		isRemote ? '--remote' : '--local',
+		'--command',
+		SQL,
+	];
 	console.log(
-		`Backfilling summary events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'}), tz offset ${offsetMinutes} minutes...`,
+		`Backfilling summary events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'}), tz offset ${offsetMinutes} minutes...`
 	);
 
 	const result = spawnSync('wrangler', args, { stdio: 'inherit' });
@@ -87,4 +96,3 @@ const run = () => {
 };
 
 run();
-

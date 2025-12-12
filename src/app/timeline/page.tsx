@@ -2,7 +2,13 @@ import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CheckCircle2, Flame, PlusCircle, StickyNote, Trash2 } from 'lucide-react';
+import {
+	CheckCircle2,
+	Flame,
+	PlusCircle,
+	StickyNote,
+	Trash2,
+} from 'lucide-react';
 import CheckinPanel from '@/app/timeline/CheckinPanel';
 import TimelineComposer from '@/app/timeline/TimelineComposer';
 import { NoteActions } from '@/app/timeline/NoteActions';
@@ -16,7 +22,11 @@ import type {
 	TimelineSummaryEvent,
 	TimelineHeatmapDay,
 } from '@/db/goals';
-import { DEFAULT_COLOR, DEFAULT_ICON, ICON_MAP } from '@/app/admin/dashboard/iconOptions';
+import {
+	DEFAULT_COLOR,
+	DEFAULT_ICON,
+	ICON_MAP,
+} from '@/app/admin/dashboard/iconOptions';
 import {
 	addDaysUtc,
 	formatTimeInTimeZone,
@@ -32,21 +42,27 @@ const HEATMAP_DAYS = 105;
 const getBaseUrl = async () => {
 	const h = await headers();
 	const host = h.get('x-forwarded-host') ?? h.get('host');
-	const protocol = host?.includes('localhost')
-		|| host?.includes('127.0.0.1')
-		? 'http' : (h.get('x-forwarded-proto') ?? 'https');
+	const protocol =
+		host?.includes('localhost') || host?.includes('127.0.0.1')
+			? 'http'
+			: (h.get('x-forwarded-proto') ?? 'https');
 	return host ? `${protocol}://${host}` : '';
 };
 
-const fetchTimelineData = async (offsetMinutes: number): Promise<TimelineData> => {
+const fetchTimelineData = async (
+	offsetMinutes: number
+): Promise<TimelineData> => {
 	try {
 		const baseUrl = await getBaseUrl();
 		const headerList = await headers();
 		const cookieHeader = headerList.get('cookie') ?? '';
-		const res = await fetch(`${baseUrl}/api/timeline?tz_offset=${offsetMinutes}`, {
-			cache: 'no-store',
-			headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-		});
+		const res = await fetch(
+			`${baseUrl}/api/timeline?tz_offset=${offsetMinutes}`,
+			{
+				cache: 'no-store',
+				headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+			}
+		);
 		if (!res.ok) return { days: [], streak: 0, heatmap: [] };
 		const json = (await res.json()) as { data?: TimelineData };
 		return json.data ?? { days: [], streak: 0, heatmap: [] };
@@ -88,8 +104,12 @@ export default async function TimelinePage() {
 							/>
 						</div>
 						<div className="space-y-1">
-							<p className="text-base font-semibold text-slate-100">RESET MYSELF</p>
-							<p className="text-sm text-slate-500">Stay on rhythm, focus on today</p>
+							<p className="text-base font-semibold text-slate-100">
+								RESET MYSELF
+							</p>
+							<p className="text-sm text-slate-500">
+								Stay on rhythm, focus on today
+							</p>
 						</div>
 					</div>
 					<div className="flex items-center gap-3">
@@ -105,7 +125,10 @@ export default async function TimelinePage() {
 				<div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
 					<div className="space-y-4 lg:order-2 lg:col-span-1">
 						<StreakBadge streak={timeline.streak} />
-						<HeatmapCard heatmap={timeline.heatmap} offsetMinutes={timeSettings.offsetMinutes} />
+						<HeatmapCard
+							heatmap={timeline.heatmap}
+							offsetMinutes={timeSettings.offsetMinutes}
+						/>
 						{todayData ? <CheckinPanel day={todayData} today={today} /> : null}
 					</div>
 
@@ -159,14 +182,16 @@ function StreakBadge({ streak }: { streak: number }) {
 				<Flame className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`} />
 			</div>
 			<div className="space-y-0.5">
-				<p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+				<p className="text-xs font-semibold tracking-[0.18em] text-slate-400 uppercase">
 					Daily streak
 				</p>
 				<p className="text-sm font-semibold text-slate-50">
 					{isActive ? `Current streak: ${streak} days` : 'No streak yet'}
 				</p>
 				<p className="text-xs text-slate-400">
-					{isActive ? 'Keep the rhythm: complete all goals to count the day' : 'Finish all goals today to start your streak'}
+					{isActive
+						? 'Keep the rhythm: complete all goals to count the day'
+						: 'Finish all goals today to start your streak'}
 				</p>
 			</div>
 		</div>
@@ -175,7 +200,11 @@ function StreakBadge({ streak }: { streak: number }) {
 
 const heatmapColors = ['#0b1017', '#123040', '#15516f', '#1c77a0', '#2bb4d9'];
 
-const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, offsetMinutes: number, days = HEATMAP_DAYS) => {
+const normalizeHeatmap = (
+	heatmap: TimelineHeatmapDay[] | undefined,
+	offsetMinutes: number,
+	days = HEATMAP_DAYS
+) => {
 	const byDate = new Map<string, number>();
 	for (const entry of heatmap ?? []) {
 		byDate.set(entry.date, entry.count);
@@ -197,7 +226,13 @@ const normalizeHeatmap = (heatmap: TimelineHeatmapDay[] | undefined, offsetMinut
 	return filled;
 };
 
-function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]; offsetMinutes: number }) {
+function HeatmapCard({
+	heatmap,
+	offsetMinutes,
+}: {
+	heatmap: TimelineHeatmapDay[];
+	offsetMinutes: number;
+}) {
 	const data = normalizeHeatmap(heatmap, offsetMinutes);
 	const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
 
@@ -205,10 +240,14 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 		return (
 			<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
 				<div className="flex items-center justify-between">
-					<p className="text-sm font-semibold text-slate-100">Heatmap for the last {HEATMAP_DAYS} days</p>
+					<p className="text-sm font-semibold text-slate-100">
+						Heatmap for the last {HEATMAP_DAYS} days
+					</p>
 					<span className="text-xs text-slate-500">No data yet</span>
 				</div>
-				<p className="mt-2 text-xs text-slate-500">Log check-ins to see them here.</p>
+				<p className="mt-2 text-xs text-slate-500">
+					Log check-ins to see them here.
+				</p>
 			</div>
 		);
 	}
@@ -219,13 +258,16 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 	});
 
 	const offset = cells[0]?.weekday ?? 0;
-	const padded: (typeof cells[number] | null)[] = [...Array(offset).fill(null), ...cells];
+	const padded: ((typeof cells)[number] | null)[] = [
+		...Array(offset).fill(null),
+		...cells,
+	];
 	const remainder = padded.length % 7;
 	if (remainder !== 0) {
 		padded.push(...Array(7 - remainder).fill(null));
 	}
 
-	const columns: (typeof cells[number] | null)[][] = [];
+	const columns: ((typeof cells)[number] | null)[][] = [];
 	for (let i = 0; i < padded.length; i += 7) {
 		columns.push(padded.slice(i, i + 7));
 	}
@@ -246,17 +288,22 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 
 	return (
 		<div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
-			<div className="flex flex-col leading-tight gap-2">
+			<div className="flex flex-col gap-2 leading-tight">
 				<span className="text-sm font-semibold text-slate-100">
 					Heatmap for the last {Math.ceil(HEATMAP_DAYS / 7)} weeks
 				</span>
-				<span className="text-xs text-slate-500">Color shows completions for the day</span>
+				<span className="text-xs text-slate-500">
+					Color shows completions for the day
+				</span>
 			</div>
 
 			<div className="mt-4 overflow-visible pb-1">
 				<div className="flex gap-1 overflow-visible">
 					{columns.map((col, colIdx) => (
-						<div key={`col-${colIdx}`} className="flex flex-col gap-1 overflow-visible">
+						<div
+							key={`col-${colIdx}`}
+							className="flex flex-col gap-1 overflow-visible"
+						>
 							{col.map((cell, rowIdx) => {
 								if (!cell) {
 									return (
@@ -273,7 +320,10 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 								const borderColor = level === 0 ? '#1f2933' : '#265c74';
 
 								return (
-									<div key={cell.date} className="group relative overflow-visible">
+									<div
+										key={cell.date}
+										className="group relative overflow-visible"
+									>
 										<div
 											className="h-[14px] w-[14px] rounded-[4px] ring-1 ring-transparent transition"
 											style={{
@@ -282,7 +332,7 @@ function HeatmapCard({ heatmap, offsetMinutes }: { heatmap: TimelineHeatmapDay[]
 											}}
 											role="presentation"
 										/>
-										<div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden -translate-x-1/2 -translate-y-[110%] whitespace-pre rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 shadow-lg ring-1 ring-slate-800 group-hover:block">
+										<div className="pointer-events-none absolute top-0 left-1/2 z-30 hidden -translate-x-1/2 -translate-y-[110%] rounded-md bg-slate-950 px-2 py-1 text-xs whitespace-pre text-slate-100 shadow-lg ring-1 ring-slate-800 group-hover:block">
 											{formatTooltip(cell)}
 										</div>
 									</div>
@@ -315,7 +365,9 @@ function DayCard({
 			<div className="flex items-start justify-between gap-3 px-4 sm:px-5">
 				<div className="space-y-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<p className="text-xl font-semibold text-slate-50">{formatDateLabel(day.date)}</p>
+						<p className="text-xl font-semibold text-slate-50">
+							{formatDateLabel(day.date)}
+						</p>
 						{isToday && (
 							<span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-sm font-semibold text-sky-200 ring-1 ring-sky-500/40">
 								Today
@@ -325,7 +377,9 @@ function DayCard({
 					<p
 						className={`text-sm font-medium ${allCompleted ? 'text-emerald-200' : 'text-amber-200'}`}
 					>
-						{allCompleted ? 'All goals met; counted toward streak' : 'Goals remaining; does not count toward streak'}
+						{allCompleted
+							? 'All goals met; counted toward streak'
+							: 'Goals remaining; does not count toward streak'}
 					</p>
 				</div>
 				<span className="rounded-full bg-slate-900 px-3.5 py-1 text-sm font-medium text-slate-300 ring-1 ring-slate-800">
@@ -341,12 +395,21 @@ function DayCard({
 						event.type === 'note' ? (
 							<NoteCard key={event.id} note={event} timeZone={timeZone} />
 						) : event.type === 'checkin' ? (
-							<CheckinEventCard key={event.id} event={event} timeZone={timeZone} />
-						) : event.type === 'goal_created' || event.type === 'goal_deleted' ? (
-							<GoalLifecycleCard key={event.id} event={event} timeZone={timeZone} />
+							<CheckinEventCard
+								key={event.id}
+								event={event}
+								timeZone={timeZone}
+							/>
+						) : event.type === 'goal_created' ||
+						  event.type === 'goal_deleted' ? (
+							<GoalLifecycleCard
+								key={event.id}
+								event={event}
+								timeZone={timeZone}
+							/>
 						) : event.type === 'summary' ? (
 							<GoalsEventCard key={event.id} event={event} />
-						) : null,
+						) : null
 					)
 				)}
 			</div>
@@ -368,7 +431,11 @@ function GoalsEventCard({ event }: { event: TimelineSummaryEvent }) {
 					<CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden />
 					<span className="text-sm font-semibold">Daily summary</span>
 				</div>
-				<span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${badgeClass}`}>{badgeLabel}</span>
+				<span
+					className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${badgeClass}`}
+				>
+					{badgeLabel}
+				</span>
 			</div>
 			{!items.length ? (
 				<p className="text-sm text-slate-500">No goal records for this day</p>
@@ -383,7 +450,13 @@ function GoalsEventCard({ event }: { event: TimelineSummaryEvent }) {
 	);
 }
 
-function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: string }) {
+function NoteCard({
+	note,
+	timeZone,
+}: {
+	note: TimelineNoteEvent;
+	timeZone: string;
+}) {
 	const timeLabel = formatTimeLabel(note.createdAt, timeZone);
 	return (
 		<div className="relative flex gap-3 rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3 pr-12">
@@ -391,7 +464,9 @@ function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: strin
 				<StickyNote className="h-4 w-4" />
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-2">
-				<p className="whitespace-pre-wrap text-base leading-relaxed text-slate-100">{note.content}</p>
+				<p className="text-base leading-relaxed whitespace-pre-wrap text-slate-100">
+					{note.content}
+				</p>
 				<span className="text-sm text-slate-500">{timeLabel}</span>
 			</div>
 			{note.noteId ? <NoteActions noteId={note.noteId} /> : null}
@@ -399,9 +474,18 @@ function NoteCard({ note, timeZone }: { note: TimelineNoteEvent; timeZone: strin
 	);
 }
 
-function CheckinEventCard({ event, timeZone }: { event: TimelineCheckinEvent; timeZone: string }) {
+function CheckinEventCard({
+	event,
+	timeZone,
+}: {
+	event: TimelineCheckinEvent;
+	timeZone: string;
+}) {
 	const timeLabel = formatTimeLabel(event.createdAt, timeZone);
-	const completionPercent = Math.min(100, Math.round(Math.min(1, event.newCount / Math.max(1, event.target)) * 100));
+	const completionPercent = Math.min(
+		100,
+		Math.round(Math.min(1, event.newCount / Math.max(1, event.target)) * 100)
+	);
 	const Icon = ICON_MAP[event.icon] ?? ICON_MAP[DEFAULT_ICON];
 	const color = event.color || DEFAULT_COLOR;
 	const isCompleted = event.newCount >= event.target;
@@ -413,15 +497,27 @@ function CheckinEventCard({ event, timeZone }: { event: TimelineCheckinEvent; ti
 				<div className="flex items-center gap-3">
 					<div
 						className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 text-sm font-semibold text-slate-100"
-						style={{ backgroundColor: `${color}22`, color, borderColor: `${color}55` }}
+						style={{
+							backgroundColor: `${color}22`,
+							color,
+							borderColor: `${color}55`,
+						}}
 					>
-						{Icon ? <Icon className="h-4 w-4" /> : event.goalTitle.trim()[0] ?? '?'}
+						{Icon ? (
+							<Icon className="h-4 w-4" />
+						) : (
+							(event.goalTitle.trim()[0] ?? '?')
+						)}
 					</div>
 					<div className="flex flex-col gap-1">
-						<p className="text-base font-semibold text-slate-50">{event.goalTitle}</p>
+						<p className="text-base font-semibold text-slate-50">
+							{event.goalTitle}
+						</p>
 						<div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
 							<span className="text-emerald-200">{deltaLabel}</span>
-							<span className="text-slate-500">New total: {event.newCount}</span>
+							<span className="text-slate-500">
+								New total: {event.newCount}
+							</span>
 						</div>
 					</div>
 				</div>
@@ -432,11 +528,15 @@ function CheckinEventCard({ event, timeZone }: { event: TimelineCheckinEvent; ti
 				<span className="text-base font-semibold text-slate-100">
 					{event.newCount} / {event.target} times
 				</span>
-				<span className={isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'}>
+				<span
+					className={
+						isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'
+					}
+				>
 					{completionPercent}% complete
 				</span>
 			</div>
-			<div className="mt-2 relative h-1.5 overflow-hidden rounded-full bg-slate-800">
+			<div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
 				<div
 					className={`h-full transition-[width] duration-500 ${
 						isCompleted ? 'bg-emerald-400' : 'bg-sky-400/80'
@@ -448,7 +548,13 @@ function CheckinEventCard({ event, timeZone }: { event: TimelineCheckinEvent; ti
 	);
 }
 
-function GoalLifecycleCard({ event, timeZone }: { event: TimelineGoalLifecycleEvent; timeZone: string }) {
+function GoalLifecycleCard({
+	event,
+	timeZone,
+}: {
+	event: TimelineGoalLifecycleEvent;
+	timeZone: string;
+}) {
 	const timeLabel = formatTimeLabel(event.createdAt, timeZone);
 	const isCreated = event.type === 'goal_created';
 	const Icon = isCreated ? PlusCircle : Trash2;
@@ -465,7 +571,11 @@ function GoalLifecycleCard({ event, timeZone }: { event: TimelineGoalLifecycleEv
 			<div className="flex min-w-0 flex-1 flex-col gap-1">
 				<div className="flex flex-wrap items-center gap-2">
 					<p className="text-base font-semibold text-slate-50">{event.title}</p>
-					<span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${badgeClass}`}>{label}</span>
+					<span
+						className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${badgeClass}`}
+					>
+						{label}
+					</span>
 				</div>
 				<span className="text-sm text-slate-500">{timeLabel}</span>
 			</div>
@@ -487,19 +597,33 @@ function GoalRow({ item }: { item: TimelineItem }) {
 		<div className={rowClass}>
 			<div
 				className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 bg-[#0b1017] text-sm font-semibold text-slate-100"
-				style={{ backgroundColor: `${color}22`, color, borderColor: `${color}55` }}
+				style={{
+					backgroundColor: `${color}22`,
+					color,
+					borderColor: `${color}55`,
+				}}
 			>
-				{Icon ? <Icon className="h-4 w-4" /> : (item.title.trim()[0] ?? '?').toUpperCase()}
+				{Icon ? (
+					<Icon className="h-4 w-4" />
+				) : (
+					(item.title.trim()[0] ?? '?').toUpperCase()
+				)}
 			</div>
 			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 				<div className="flex min-w-0 items-center gap-2">
-					<p className="truncate text-base font-semibold text-slate-50">{item.title}</p>
+					<p className="truncate text-base font-semibold text-slate-50">
+						{item.title}
+					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
 					<span className="text-base font-semibold text-slate-100">
 						{item.count} / {item.target} times
 					</span>
-					<span className={isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'}>
+					<span
+						className={
+							isCompleted ? 'font-semibold text-emerald-300' : 'text-slate-400'
+						}
+					>
 						{completionPercent}% complete
 					</span>
 				</div>
@@ -510,7 +634,12 @@ function GoalRow({ item }: { item: TimelineItem }) {
 						}`}
 						style={{ width: `${completionPercent}%` }}
 					/>
-					{isCompleted && <span className="absolute inset-0 rounded-full border border-emerald-500/40" aria-hidden />}
+					{isCompleted && (
+						<span
+							className="absolute inset-0 rounded-full border border-emerald-500/40"
+							aria-hidden
+						/>
+					)}
 				</div>
 			</div>
 		</div>

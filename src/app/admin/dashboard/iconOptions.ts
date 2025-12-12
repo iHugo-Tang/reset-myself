@@ -31,10 +31,13 @@ export const ICON_OPTIONS: IconOption[] = [
 	{ value: 'Sparkles', label: 'Sparkles', Icon: Sparkles },
 ];
 
-export const ICON_MAP = ICON_OPTIONS.reduce<Record<string, LucideIcon>>((acc, cur) => {
-	acc[cur.value] = cur.Icon;
-	return acc;
-}, {});
+export const ICON_MAP = ICON_OPTIONS.reduce<Record<string, LucideIcon>>(
+	(acc, cur) => {
+		acc[cur.value] = cur.Icon;
+		return acc;
+	},
+	{}
+);
 
 export const COLOR_OPTIONS = [
 	'#0ea5e9', // sky

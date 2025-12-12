@@ -48,8 +48,14 @@ export function CompleteButton({
 			});
 
 			if (!res.ok) {
-				const json = (await res.json().catch(() => null)) as { error?: string } | null;
-				setError(json?.error ? `Failed: ${json.error}` : 'Could not record. Please try again soon.');
+				const json = (await res.json().catch(() => null)) as {
+					error?: string;
+				} | null;
+				setError(
+					json?.error
+						? `Failed: ${json.error}`
+						: 'Could not record. Please try again soon.'
+				);
 				return;
 			}
 
@@ -65,19 +71,23 @@ export function CompleteButton({
 	const disabled = isCompleted || loading;
 
 	const buttonText = isCompleted
-		? labels?.completed ?? 'Done'
+		? (labels?.completed ?? 'Done')
 		: loading
-			? labels?.loading ?? 'Working...'
-			: labels?.idle ?? 'Check in today';
+			? (labels?.loading ?? 'Working...')
+			: (labels?.idle ?? 'Check in today');
 
 	const baseClass =
 		'font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500';
-	const sizeClass = variant === 'compact' ? 'rounded-xl px-2.5 py-1 text-sm' : 'rounded-full px-3 py-1.5 text-xs';
+	const sizeClass =
+		variant === 'compact'
+			? 'rounded-xl px-2.5 py-1 text-sm'
+			: 'rounded-full px-3 py-1.5 text-xs';
 	const enabledClass =
 		variant === 'compact'
 			? 'border border-slate-700 bg-slate-900/70 text-slate-100 hover:border-slate-500 hover:bg-slate-800 active:border-slate-400'
 			: 'border border-slate-700 bg-transparent text-slate-100 hover:border-slate-500 hover:bg-slate-800/80 active:border-slate-400 active:bg-slate-800';
-	const completedClass = 'cursor-not-allowed border border-slate-800 bg-slate-900 text-slate-500';
+	const completedClass =
+		'cursor-not-allowed border border-slate-800 bg-slate-900 text-slate-500';
 	const loadingClass = loading ? 'opacity-80' : '';
 
 	return (

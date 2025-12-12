@@ -17,7 +17,11 @@ const makeMeta = (): D1Meta & Record<string, unknown> => ({
 });
 
 class SqlJsPreparedStatement implements D1PreparedStatement {
-	constructor(private readonly db: any, private readonly sql: string, private readonly bound?: unknown[]) {}
+	constructor(
+		private readonly db: any,
+		private readonly sql: string,
+		private readonly bound?: unknown[]
+	) {}
 
 	bind(...values: unknown[]) {
 		return new SqlJsPreparedStatement(this.db, this.sql, values);
@@ -38,7 +42,9 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
 		return (colName ? (firstRow[colName] as T) : (firstRow as T)) ?? null;
 	}
 
-	async raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>;
+	async raw<T = unknown[]>(options: {
+		columnNames: true;
+	}): Promise<[string[], ...T[]]>;
 	async raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
 	async raw<T = unknown[]>(options?: { columnNames?: boolean }) {
 		const stmt = this.prepare();
@@ -82,7 +88,9 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
 class SqlJsD1Database implements D1Database {
 	constructor(private readonly db: any) {}
 
-	async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
+	async batch<T = unknown>(
+		statements: D1PreparedStatement[]
+	): Promise<D1Result<T>[]> {
 		return Promise.all(statements.map((stmt) => stmt.run<T>()));
 	}
 
@@ -102,7 +110,8 @@ class SqlJsD1Database implements D1Database {
 	withSession(): D1DatabaseSession {
 		return {
 			prepare: (query: string) => this.prepare(query),
-			batch: <T = unknown>(statements: D1PreparedStatement[]) => this.batch<T>(statements),
+			batch: <T = unknown>(statements: D1PreparedStatement[]) =>
+				this.batch<T>(statements),
 			getBookmark: () => null,
 		} as unknown as D1DatabaseSession;
 	}
@@ -120,7 +129,12 @@ const migrationSql = fs
 
 export const createTestEnv = async () => {
 	const SQL = await initSqlJs({
-		locateFile: (file: string) => path.join(path.dirname(require.resolve('sql.js/package.json')), 'dist', file),
+		locateFile: (file: string) =>
+			path.join(
+				path.dirname(require.resolve('sql.js/package.json')),
+				'dist',
+				file
+			),
 	});
 
 	const sqlite = new SQL.Database();
@@ -145,6 +159,6 @@ export const resetDb = async (env: EnvWithD1) => {
 			'DELETE FROM daily_summaries;',
 			'DELETE FROM goal_completions;',
 			'DELETE FROM goals;',
-		].join(''),
+		].join('')
 	);
 };

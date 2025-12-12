@@ -38,31 +38,44 @@ const parseOffset = (raw?: string | null) => {
 	return Number.isFinite(parsed) ? Math.round(parsed) : DEFAULT_OFFSET_MINUTES;
 };
 
-export const normalizeTimeZone = (tz?: string | null): string => (isValidTimeZone(tz) ? tz! : DEFAULT_TZ);
+export const normalizeTimeZone = (tz?: string | null): string =>
+	isValidTimeZone(tz) ? tz! : DEFAULT_TZ;
 
 export const normalizeOffset = (offsetMinutes?: number | null) =>
-	Number.isFinite(offsetMinutes) ? Math.round(offsetMinutes!) : DEFAULT_OFFSET_MINUTES;
+	Number.isFinite(offsetMinutes)
+		? Math.round(offsetMinutes!)
+		: DEFAULT_OFFSET_MINUTES;
 
-export const readTimeZoneFromCookieHeader = (cookieHeader?: string | null): string => {
+export const readTimeZoneFromCookieHeader = (
+	cookieHeader?: string | null
+): string => {
 	if (!cookieHeader) return DEFAULT_TZ;
 	const parts = cookieHeader.split(';').map((c) => c.trim());
 	const raw = parts.find((c) => c.startsWith(`${TZ_COOKIE}=`))?.split('=')[1];
 	return normalizeTimeZone(decodeCookieValue(raw));
 };
 
-export const readOffsetFromCookieHeader = (cookieHeader?: string | null): number => {
+export const readOffsetFromCookieHeader = (
+	cookieHeader?: string | null
+): number => {
 	if (!cookieHeader) return DEFAULT_OFFSET_MINUTES;
 	const parts = cookieHeader.split(';').map((c) => c.trim());
-	const raw = parts.find((c) => c.startsWith(`${TZ_OFFSET_COOKIE}=`))?.split('=')[1];
+	const raw = parts
+		.find((c) => c.startsWith(`${TZ_OFFSET_COOKIE}=`))
+		?.split('=')[1];
 	return normalizeOffset(parseOffset(decodeCookieValue(raw)));
 };
 
-export const readTimeZoneFromCookies = (cookies?: { get: (name: string) => { value?: string } | undefined }): string => {
+export const readTimeZoneFromCookies = (cookies?: {
+	get: (name: string) => { value?: string } | undefined;
+}): string => {
 	const raw = cookies?.get(TZ_COOKIE)?.value;
 	return normalizeTimeZone(decodeCookieValue(raw));
 };
 
-export const readOffsetFromCookies = (cookies?: { get: (name: string) => { value?: string } | undefined }): number => {
+export const readOffsetFromCookies = (cookies?: {
+	get: (name: string) => { value?: string } | undefined;
+}): number => {
 	const raw = cookies?.get(TZ_OFFSET_COOKIE)?.value;
 	return normalizeOffset(parseOffset(decodeCookieValue(raw)));
 };
@@ -84,7 +97,10 @@ export const resolveRequestTimeSettings = (opts: {
 	};
 };
 
-export const formatDateInTimeZone = (input: Date | number | string, timeZone: string): string => {
+export const formatDateInTimeZone = (
+	input: Date | number | string,
+	timeZone: string
+): string => {
 	const tz = normalizeTimeZone(timeZone);
 	const date = typeof input === 'string' ? new Date(input) : new Date(input);
 	return new Intl.DateTimeFormat('en-CA', {
@@ -103,15 +119,23 @@ const toUtcDayjs = (input: Date | number | string) => {
 	return dayjs.utc(input);
 };
 
-export const toDateKey = (input: Date | number | string, offsetMinutes = DEFAULT_OFFSET_MINUTES): string => {
+export const toDateKey = (
+	input: Date | number | string,
+	offsetMinutes = DEFAULT_OFFSET_MINUTES
+): string => {
 	const utcDate = toUtcDayjs(input);
 	if (!utcDate.isValid()) return '';
 	return utcDate.add(offsetMinutes, 'minute').format('YYYY-MM-DD');
 };
 
-export const getTodayKey = (offsetMinutes = DEFAULT_OFFSET_MINUTES): string => toDateKey(Date.now(), offsetMinutes);
+export const getTodayKey = (offsetMinutes = DEFAULT_OFFSET_MINUTES): string =>
+	toDateKey(Date.now(), offsetMinutes);
 
-export const buildDateKeys = (days: number, offsetMinutes = DEFAULT_OFFSET_MINUTES, endUtcMs = Date.now()): string[] => {
+export const buildDateKeys = (
+	days: number,
+	offsetMinutes = DEFAULT_OFFSET_MINUTES,
+	endUtcMs = Date.now()
+): string[] => {
 	const keys: string[] = [];
 	for (let i = 0; i < days; i++) {
 		const utcMs = endUtcMs - i * MS_PER_DAY;
@@ -121,19 +145,30 @@ export const buildDateKeys = (days: number, offsetMinutes = DEFAULT_OFFSET_MINUT
 };
 
 // Return the UTC timestamp (ms) for local day start (00:00)
-export const startOfDayUtcMs = (utcMs = Date.now(), offsetMinutes = DEFAULT_OFFSET_MINUTES): number => {
+export const startOfDayUtcMs = (
+	utcMs = Date.now(),
+	offsetMinutes = DEFAULT_OFFSET_MINUTES
+): number => {
 	const localMs = utcMs + offsetMinutes * 60_000;
 	const localStart = Math.floor(localMs / MS_PER_DAY) * MS_PER_DAY;
 	return localStart - offsetMinutes * 60_000;
 };
 
-export const addDaysUtc = (utcMs: number, days: number) => utcMs + days * MS_PER_DAY;
+export const addDaysUtc = (utcMs: number, days: number) =>
+	utcMs + days * MS_PER_DAY;
 
-export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = 'en-US') => {
+export const formatWeekdayLabel = (
+	dateKey: string,
+	timeZone: string,
+	locale = 'en-US'
+) => {
 	const tz = normalizeTimeZone(timeZone);
 	const date = new Date(`${dateKey}T00:00:00Z`);
 	try {
-		return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: tz }).format(date);
+		return new Intl.DateTimeFormat(locale, {
+			weekday: 'short',
+			timeZone: tz,
+		}).format(date);
 	} catch {
 		/* c8 ignore start */
 		return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
@@ -141,7 +176,11 @@ export const formatWeekdayLabel = (dateKey: string, timeZone: string, locale = '
 	}
 };
 
-export const formatTimeInTimeZone = (iso: string, timeZone: string, locale = 'en-US') => {
+export const formatTimeInTimeZone = (
+	iso: string,
+	timeZone: string,
+	locale = 'en-US'
+) => {
 	const tz = normalizeTimeZone(timeZone);
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return iso;
@@ -164,4 +203,10 @@ export const weekDayIndex = (dateKey: string) => {
 	return d.getUTCDay();
 };
 
-export { TZ_COOKIE, TZ_OFFSET_COOKIE, DEFAULT_TZ, DEFAULT_OFFSET_MINUTES, MS_PER_DAY };
+export {
+	TZ_COOKIE,
+	TZ_OFFSET_COOKIE,
+	DEFAULT_TZ,
+	DEFAULT_OFFSET_MINUTES,
+	MS_PER_DAY,
+};

@@ -12,7 +12,9 @@ const parseContent = async (req: NextRequest): Promise<string> => {
 	const contentType = req.headers.get('content-type') || '';
 
 	if (contentType.includes('application/json')) {
-		const json = (await req.json().catch(() => null)) as { content?: unknown } | null;
+		const json = (await req.json().catch(() => null)) as {
+			content?: unknown;
+		} | null;
 		return (json?.content ?? '').toString();
 	}
 
@@ -22,9 +24,14 @@ const parseContent = async (req: NextRequest): Promise<string> => {
 /* c8 ignore end */
 
 export async function POST(req: NextRequest) {
-	const wantsJson = req.headers.get('accept')?.includes('application/json') ?? true;
-	const reply = (body: object, status = 200) => NextResponse.json(body, { status });
-	const time = resolveRequestTimeSettings({ cookies: req.cookies, cookieHeader: req.headers.get('cookie') });
+	const wantsJson =
+		req.headers.get('accept')?.includes('application/json') ?? true;
+	const reply = (body: object, status = 200) =>
+		NextResponse.json(body, { status });
+	const time = resolveRequestTimeSettings({
+		cookies: req.cookies,
+		cookieHeader: req.headers.get('cookie'),
+	});
 
 	const raw = (await parseContent(req)).trim();
 
@@ -33,16 +40,27 @@ export async function POST(req: NextRequest) {
 	}
 
 	if (raw.length > MAX_LEN) {
-		return reply({ success: false, message: `Content must be ${MAX_LEN} characters or less` }, 400);
+		return reply(
+			{
+				success: false,
+				message: `Content must be ${MAX_LEN} characters or less`,
+			},
+			400
+		);
 	}
 
 	try {
-		const note = await createTimelineNote(getEnv(), raw, undefined, { offsetMinutes: time.offsetMinutes });
+		const note = await createTimelineNote(getEnv(), raw, undefined, {
+			offsetMinutes: time.offsetMinutes,
+		});
 		return wantsJson
 			? reply({ success: true, data: note })
 			: NextResponse.redirect(new URL('/timeline', req.url));
 	} catch (error) {
 		console.error('POST /api/timeline/notes error', error);
-		return reply({ success: false, message: 'Unable to save. Please try again soon.' }, 500);
+		return reply(
+			{ success: false, message: 'Unable to save. Please try again soon.' },
+			500
+		);
 	}
 }

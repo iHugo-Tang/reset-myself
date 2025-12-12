@@ -3,7 +3,10 @@ import type { NextRequest, NextResponse } from 'next/server';
 
 import { getSupabaseConfig } from './config';
 
-export const createSupabaseMiddlewareClient = (req: NextRequest, res: NextResponse) => {
+export const createSupabaseMiddlewareClient = (
+	req: NextRequest,
+	res: NextResponse
+) => {
 	const { supabaseKey, supabaseUrl } = getSupabaseConfig();
 
 	return createServerClient(supabaseUrl, supabaseKey, {

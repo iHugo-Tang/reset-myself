@@ -26,7 +26,9 @@ export function NoteActions({ noteId }: Props) {
 			});
 
 			if (!res.ok) {
-				const json = (await res.json().catch(() => null)) as { message?: string } | null;
+				const json = (await res.json().catch(() => null)) as {
+					message?: string;
+				} | null;
 				setError(json?.message ?? 'Delete failed. Please try again soon.');
 				return;
 			}
@@ -41,7 +43,7 @@ export function NoteActions({ noteId }: Props) {
 	};
 
 	return (
-		<div className="absolute right-3 top-3">
+		<div className="absolute top-3 right-3">
 			<details className="group text-slate-400">
 				<summary
 					className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition hover:bg-slate-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-600 [&::-webkit-details-marker]:hidden"
@@ -58,7 +60,9 @@ export function NoteActions({ noteId }: Props) {
 					>
 						{loading ? 'Deleting...' : 'Delete'}
 					</button>
-					{error ? <p className="px-3 pb-2 text-sm text-amber-300">{error}</p> : null}
+					{error ? (
+						<p className="px-3 pb-2 text-sm text-amber-300">{error}</p>
+					) : null}
 				</div>
 			</details>
 		</div>

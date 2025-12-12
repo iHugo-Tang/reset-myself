@@ -1,17 +1,17 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "3cc81c8f-beec-4916-9ecd-17289f469ffe",
-  "prevId": "1823378e-2951-4990-bb79-71291d2dd59e",
-  "tables": {},
-  "views": {},
-  "enums": {},
-  "_meta": {
-    "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "indexes": {}
-  }
+	"version": "6",
+	"dialect": "sqlite",
+	"id": "3cc81c8f-beec-4916-9ecd-17289f469ffe",
+	"prevId": "1823378e-2951-4990-bb79-71291d2dd59e",
+	"tables": {},
+	"views": {},
+	"enums": {},
+	"_meta": {
+		"schemas": {},
+		"tables": {},
+		"columns": {}
+	},
+	"internal": {
+		"indexes": {}
+	}
 }

@@ -1,48 +1,48 @@
 {
-  "version": "7",
-  "dialect": "sqlite",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "6",
-      "when": 1765083493417,
-      "tag": "0000_plain_riptide",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1765141082321,
-      "tag": "0001_busy_greymalkin",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1765145306389,
-      "tag": "0002_flimsy_jamie_braddock",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1765200000000,
-      "tag": "0003_timeline_notes",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1765210000000,
-      "tag": "0004_goal_icon_color",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1765220000000,
-      "tag": "0005_timeline_events",
-      "breakpoints": true
+	"version": "7",
+	"dialect": "sqlite",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "6",
+			"when": 1765083493417,
+			"tag": "0000_plain_riptide",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1765141082321,
+			"tag": "0001_busy_greymalkin",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1765145306389,
+			"tag": "0002_flimsy_jamie_braddock",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1765200000000,
+			"tag": "0003_timeline_notes",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1765210000000,
+			"tag": "0004_goal_icon_color",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1765220000000,
+			"tag": "0005_timeline_events",
+			"breakpoints": true
 		},
 		{
 			"idx": 6,
@@ -50,6 +50,6 @@
 			"when": 1765230000000,
 			"tag": "0006_daily_summaries",
 			"breakpoints": true
-    }
-  ]
+		}
+	]
 }

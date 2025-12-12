@@ -3,9 +3,13 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 import { getSupabaseConfig } from './config';
 
-type CookieSetter = (params: { name: string; value: string } & CookieOptions) => void;
+type CookieSetter = (
+	params: { name: string; value: string } & CookieOptions
+) => void;
 
-const getCookieSetter = (cookieStore: Awaited<ReturnType<typeof cookies>>): CookieSetter | null => {
+const getCookieSetter = (
+	cookieStore: Awaited<ReturnType<typeof cookies>>
+): CookieSetter | null => {
 	// cookies() is writable in Server Actions; read-only in Server Components. Make it tolerant.
 	const storeWithSet = cookieStore as unknown as { set?: CookieSetter };
 	return storeWithSet.set ?? null;

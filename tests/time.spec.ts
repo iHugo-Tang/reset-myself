@@ -60,15 +60,21 @@ describe('utils/time', () => {
 		expect(settings.timeZone).toBe('America/New_York');
 		expect(settings.offsetMinutes).toBe(-300);
 
-		const fallbackSettings = resolveRequestTimeSettings({ cookieHeader: 'tz=Invalid/Zone; tz_offset=not-a-number' });
+		const fallbackSettings = resolveRequestTimeSettings({
+			cookieHeader: 'tz=Invalid/Zone; tz_offset=not-a-number',
+		});
 		expect(fallbackSettings.timeZone).toBe('UTC');
 		expect(fallbackSettings.offsetMinutes).toBe(0);
 	});
 
 	it('formats dates and times with sensible fallbacks', () => {
-		expect(formatDateInTimeZone('2024-01-05T10:00:00Z', 'Asia/Tokyo')).toBe('2024-01-05');
+		expect(formatDateInTimeZone('2024-01-05T10:00:00Z', 'Asia/Tokyo')).toBe(
+			'2024-01-05'
+		);
 		expect(formatWeekdayLabel('2024-01-05', 'Invalid/Zone')).toBe('Fri');
-		expect(formatTimeInTimeZone('2024-01-05T03:04:00Z', 'Europe/London')).toBe('03:04');
+		expect(formatTimeInTimeZone('2024-01-05T03:04:00Z', 'Europe/London')).toBe(
+			'03:04'
+		);
 		expect(formatTimeInTimeZone('not-a-date', 'UTC')).toBe('not-a-date');
 
 		const originalFormatter = Intl.DateTimeFormat;

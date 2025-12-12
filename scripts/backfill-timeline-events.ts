@@ -69,9 +69,18 @@ WHERE NOT EXISTS (
 `;
 
 const run = () => {
-	const args = ['d1', 'execute', TARGET_DB, isRemote ? '--remote' : '--local', '--command', SQL];
+	const args = [
+		'd1',
+		'execute',
+		TARGET_DB,
+		isRemote ? '--remote' : '--local',
+		'--command',
+		SQL,
+	];
 
-	console.log(`Backfilling timeline_events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`);
+	console.log(
+		`Backfilling timeline_events into "${TARGET_DB}" (${isRemote ? 'remote' : 'local'})...`
+	);
 	const result = spawnSync('wrangler', args, { stdio: 'inherit' });
 
 	if (result.status !== 0) {

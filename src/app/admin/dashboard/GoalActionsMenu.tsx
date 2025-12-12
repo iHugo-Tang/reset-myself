@@ -22,7 +22,9 @@ export function GoalActionsMenu({ goal }: Props) {
 	const [editing, setEditing] = useState(false);
 	const [title, setTitle] = useState(goal.title);
 	const [description, setDescription] = useState(goal.description ?? '');
-	const [dailyTargetCount, setDailyTargetCount] = useState(goal.dailyTargetCount.toString());
+	const [dailyTargetCount, setDailyTargetCount] = useState(
+		goal.dailyTargetCount.toString()
+	);
 	const [icon, setIcon] = useState(goal.icon || DEFAULT_ICON);
 	const [color, setColor] = useState(goal.color || DEFAULT_COLOR);
 	const [message, setMessage] = useState<string | null>(null);
@@ -33,7 +35,10 @@ export function GoalActionsMenu({ goal }: Props) {
 		setMessage(null);
 	}, [editing]);
 
-	const IconPreview = useMemo(() => ICON_MAP[icon] ?? ICON_MAP[DEFAULT_ICON], [icon]);
+	const IconPreview = useMemo(
+		() => ICON_MAP[icon] ?? ICON_MAP[DEFAULT_ICON],
+		[icon]
+	);
 
 	const handleDelete = async () => {
 		const ok = window.confirm('Delete this goal? This cannot be undone.');
@@ -46,7 +51,9 @@ export function GoalActionsMenu({ goal }: Props) {
 				headers: { accept: 'application/json' },
 			});
 			if (!res.ok) {
-				const json = (await res.json().catch(() => null)) as { message?: string } | null;
+				const json = (await res.json().catch(() => null)) as {
+					message?: string;
+				} | null;
 				setMessage(json?.message ?? 'Delete failed');
 				return;
 			}
@@ -77,7 +84,9 @@ export function GoalActionsMenu({ goal }: Props) {
 			});
 
 			if (!res.ok) {
-				const json = (await res.json().catch(() => null)) as { message?: string } | null;
+				const json = (await res.json().catch(() => null)) as {
+					message?: string;
+				} | null;
 				setMessage(json?.message ?? 'Save failed');
 				return;
 			}
@@ -134,7 +143,11 @@ export function GoalActionsMenu({ goal }: Props) {
 						{IconPreview ? (
 							<span
 								className="flex h-9 w-9 items-center justify-center rounded-full ring-2"
-								style={{ backgroundColor: `${color}22`, color, boxShadow: 'inset 0 0 0 1px #e2e8f0' }}
+								style={{
+									backgroundColor: `${color}22`,
+									color,
+									boxShadow: 'inset 0 0 0 1px #e2e8f0',
+								}}
 							>
 								<IconPreview className="h-4 w-4" />
 							</span>
@@ -143,37 +156,45 @@ export function GoalActionsMenu({ goal }: Props) {
 
 					<form className="grid gap-3" onSubmit={handleSubmit}>
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">Goal name</span>
+							<span className="text-xs font-medium text-slate-700">
+								Goal name
+							</span>
 							<input
 								value={title}
 								onChange={(e) => setTitle(e.target.value)}
 								required
-								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
+								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-emerald-200 outline-none focus:ring-2"
 							/>
 						</label>
 
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">Description</span>
+							<span className="text-xs font-medium text-slate-700">
+								Description
+							</span>
 							<textarea
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
-								className="min-h-[72px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
+								className="min-h-[72px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-emerald-200 outline-none focus:ring-2"
 							/>
 						</label>
 
 						<label className="flex flex-col gap-1">
-							<span className="text-xs font-medium text-slate-700">Daily target count</span>
+							<span className="text-xs font-medium text-slate-700">
+								Daily target count
+							</span>
 							<input
 								type="number"
 								min={1}
 								value={dailyTargetCount}
 								onChange={(e) => setDailyTargetCount(e.target.value)}
-								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-emerald-200 focus:ring-2"
+								className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-emerald-200 outline-none focus:ring-2"
 							/>
 						</label>
 
 						<div className="grid gap-2">
-							<span className="text-xs font-medium text-slate-700">Choose an icon</span>
+							<span className="text-xs font-medium text-slate-700">
+								Choose an icon
+							</span>
 							<div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
 								{ICON_OPTIONS.map((opt) => {
 									const Icon = opt.Icon;
@@ -182,7 +203,9 @@ export function GoalActionsMenu({ goal }: Props) {
 										<label
 											key={opt.value}
 											className={`flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm transition hover:border-emerald-300 ${
-												checked ? 'border-emerald-500 ring-1 ring-emerald-200' : 'border-slate-200'
+												checked
+													? 'border-emerald-500 ring-1 ring-emerald-200'
+													: 'border-slate-200'
 											}`}
 										>
 											<input
@@ -204,7 +227,9 @@ export function GoalActionsMenu({ goal }: Props) {
 						</div>
 
 						<div className="grid gap-2">
-							<span className="text-xs font-medium text-slate-700">Choose a color</span>
+							<span className="text-xs font-medium text-slate-700">
+								Choose a color
+							</span>
 							<div className="flex flex-wrap gap-2">
 								{COLOR_OPTIONS.map((c) => {
 									const checked = c === color;
@@ -231,7 +256,9 @@ export function GoalActionsMenu({ goal }: Props) {
 							</div>
 						</div>
 
-						{message ? <p className="text-sm text-rose-600">{message}</p> : null}
+						{message ? (
+							<p className="text-sm text-rose-600">{message}</p>
+						) : null}
 
 						<div className="flex items-center gap-2">
 							<button
@@ -239,7 +266,9 @@ export function GoalActionsMenu({ goal }: Props) {
 								disabled={isPending}
 								className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
 							>
-								{isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+								{isPending ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : null}
 								<span>Save changes</span>
 							</button>
 							<button

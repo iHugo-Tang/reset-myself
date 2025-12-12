@@ -8,7 +8,10 @@ const getEnv = () => getCloudflareContext().env as EnvWithD1;
 const redirectToDashboard = (request: NextRequest, suffix: string) =>
 	NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, request.url));
 
-const handleDelete = async (request: NextRequest, params: Promise<{ id: string }>) => {
+const handleDelete = async (
+	request: NextRequest,
+	params: Promise<{ id: string }>
+) => {
 	const { id } = await params;
 	const goalId = Number(id);
 	const wantsJson =
@@ -18,7 +21,10 @@ const handleDelete = async (request: NextRequest, params: Promise<{ id: string }
 
 	if (!goalId) {
 		if (wantsJson) {
-			return NextResponse.json({ success: false, message: 'missing_goal_id' }, { status: 400 });
+			return NextResponse.json(
+				{ success: false, message: 'missing_goal_id' },
+				{ status: 400 }
+			);
 		}
 		return redirectToDashboard(request, '?error=missing_goal_id');
 	}
@@ -32,18 +38,27 @@ const handleDelete = async (request: NextRequest, params: Promise<{ id: string }
 	} catch (error) {
 		console.error('DELETE /api/goals/[id] error', error);
 		if (wantsJson) {
-			return NextResponse.json({ success: false, message: 'delete_goal_failed' }, { status: 500 });
+			return NextResponse.json(
+				{ success: false, message: 'delete_goal_failed' },
+				{ status: 500 }
+			);
 		}
 		return redirectToDashboard(request, '?error=delete_goal_failed');
 	}
 };
 
-const handleUpdate = async (request: NextRequest, params: Promise<{ id: string }>) => {
+const handleUpdate = async (
+	request: NextRequest,
+	params: Promise<{ id: string }>
+) => {
 	const { id } = await params;
 	const goalId = Number(id);
 
 	if (!goalId) {
-		return NextResponse.json({ success: false, message: 'missing_goal_id' }, { status: 400 });
+		return NextResponse.json(
+			{ success: false, message: 'missing_goal_id' },
+			{ status: 400 }
+		);
 	}
 
 	let body: Record<string, unknown> = {};
@@ -54,11 +69,14 @@ const handleUpdate = async (request: NextRequest, params: Promise<{ id: string }
 	}
 
 	const title = typeof body.title === 'string' ? body.title : undefined;
-	const description = typeof body.description === 'string' ? body.description : undefined;
+	const description =
+		typeof body.description === 'string' ? body.description : undefined;
 	const icon = typeof body.icon === 'string' ? body.icon : undefined;
 	const color = typeof body.color === 'string' ? body.color : undefined;
 	const dailyTargetCount =
-		body.dailyTargetCount !== undefined ? Number(body.dailyTargetCount) : undefined;
+		body.dailyTargetCount !== undefined
+			? Number(body.dailyTargetCount)
+			: undefined;
 
 	try {
 		await updateGoal(getEnv(), goalId, {
@@ -72,7 +90,11 @@ const handleUpdate = async (request: NextRequest, params: Promise<{ id: string }
 	} catch (error) {
 		console.error('PATCH /api/goals/[id] error', error);
 		const message =
-			error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown_error';
+			error instanceof Error
+				? error.message
+				: typeof error === 'string'
+					? error
+					: 'unknown_error';
 
 		const friendly =
 			message === 'title_required'
@@ -81,18 +103,30 @@ const handleUpdate = async (request: NextRequest, params: Promise<{ id: string }
 					? 'Daily target must be a positive integer'
 					: message;
 
-		return NextResponse.json({ success: false, message: friendly }, { status: 400 });
+		return NextResponse.json(
+			{ success: false, message: friendly },
+			{ status: 400 }
+		);
 	}
 };
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
+) {
 	return handleDelete(request, context.params);
 }
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
+) {
 	return handleDelete(request, context.params);
 }
 
-export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
+) {
 	return handleUpdate(request, context.params);
 }

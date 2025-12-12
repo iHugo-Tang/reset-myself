@@ -1,4 +1,10 @@
-import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	integer,
+	real,
+	sqliteTable,
+	text,
+	uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const dailySummaries = sqliteTable(
@@ -15,9 +21,8 @@ export const dailySummaries = sqliteTable(
 	},
 	(table) => ({
 		dateUnique: uniqueIndex('daily_summaries_date_unique').on(table.date),
-	}),
+	})
 );
 
 export type DailySummaryRow = typeof dailySummaries.$inferSelect;
 export type NewDailySummaryRow = typeof dailySummaries.$inferInsert;
-
