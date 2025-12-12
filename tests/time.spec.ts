@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import {
 	addDaysUtc,
@@ -20,8 +20,16 @@ import {
 } from '@/utils/time';
 
 describe('utils/time', () => {
+	const fixedNow = Date.parse('2024-06-15T12:00:00Z');
+	let realDateNow: typeof Date.now;
+
 	beforeEach(() => {
-		vi.setSystemTime(new Date('2024-06-15T12:00:00Z'));
+		realDateNow = Date.now;
+		Date.now = () => fixedNow;
+	});
+
+	afterEach(() => {
+		Date.now = realDateNow;
 	});
 
 	it('normalizes timezone and offset values safely', () => {

@@ -8,16 +8,30 @@ import { goals } from '../../drizzle/schema';
 import { createRouteTester } from '../helpers/routeTester';
 import { createTestEnv } from '../helpers/testDb';
 
-const mockCloudflare = (env: EnvWithD1) => {
-	vi.doMock('@opennextjs/cloudflare', () => ({
-		getCloudflareContext: () => ({ env }),
-	}));
+const mockCloudflare = async (env: EnvWithD1) => {
+	if (typeof (globalThis as { vi?: typeof vi }).vi?.mock === 'function') {
+		vi.mock('@opennextjs/cloudflare', () => ({
+			getCloudflareContext: () => ({ env }),
+		}));
+		return;
+	}
+
+	// Bun test fallback
+	if (typeof process !== 'undefined' && (process as NodeJS.Process).versions?.bun) {
+		const { mock } = await import('bun:test');
+		mock.module('@opennextjs/cloudflare', () => ({
+			getCloudflareContext: () => ({ env }),
+		}));
+		return;
+	}
+
+	throw new Error('No mocking framework available');
 };
 
 describe('API routes', () => {
 	it('GET /api/timeline returns data and handles errors', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		const { GET } = await import('@/app/api/timeline/route');
 
 		const okServer = createRouteTester(GET);
@@ -36,7 +50,7 @@ describe('API routes', () => {
 
 	it('GET /api/goals returns dashboard data and surfaces errors', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		await createGoal(env, { title: 'X', dailyTargetCount: 1 });
 
 		const { GET } = await import('@/app/api/goals/route');
@@ -56,7 +70,7 @@ describe('API routes', () => {
 
 	it('POST /api/goals validates input and redirects', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		const { POST } = await import('@/app/api/goals/route');
 
 		const badServer = createRouteTester(POST);
@@ -77,7 +91,7 @@ describe('API routes', () => {
 
 it('POST /api/goals returns error redirect when creation fails', async () => {
 	const { env, dispose } = await createTestEnv();
-	mockCloudflare(env);
+	await mockCloudflare(env);
 	const goalsModule = await import('@/db/goals');
 	vi.spyOn(goalsModule, 'createGoal').mockRejectedValueOnce(new Error('fail'));
 	const { POST } = await import('@/app/api/goals/route');
@@ -95,7 +109,7 @@ it('POST /api/goals returns error redirect when creation fails', async () => {
 
 	it('POST /api/goals/[id]/completion handles success and failure paths', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		const goalsModule = await import('@/db/goals');
 		const { POST } = await import('@/app/api/goals/[id]/completion/route');
 
@@ -151,7 +165,7 @@ it('POST /api/goals returns error redirect when creation fails', async () => {
 
 it('POST /api/goals/[id]/completion redirects on error when client accepts html', async () => {
 	const { env, dispose } = await createTestEnv();
-	mockCloudflare(env);
+	await mockCloudflare(env);
 	const goalsModule = await import('@/db/goals');
 	vi.spyOn(goalsModule, 'recordGoalCompletion').mockRejectedValueOnce(new Error('fail'));
 	const goal = await createGoal(env, { title: 'Redirect', dailyTargetCount: 1 });
@@ -165,7 +179,7 @@ it('POST /api/goals/[id]/completion redirects on error when client accepts html'
 
 	it('POST /api/goals/[id]/target updates goal target or redirects on missing id', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		const { POST } = await import('@/app/api/goals/[id]/target/route');
 
 		const missingServer = createRouteTester(POST, { id: '0' });
@@ -206,7 +220,7 @@ it('POST /api/goals/[id]/completion redirects on error when client accepts html'
 
 it('POST /api/goals/[id]/target redirects when update fails', async () => {
 	const { env, dispose } = await createTestEnv();
-	mockCloudflare(env);
+	await mockCloudflare(env);
 	const goalsModule = await import('@/db/goals');
 	const goal = await createGoal(env, { title: 'Err', dailyTargetCount: 1 });
 	vi.spyOn(goalsModule, 'updateGoalTarget').mockRejectedValueOnce(new Error('fail'));
@@ -223,7 +237,7 @@ it('POST /api/goals/[id]/target redirects when update fails', async () => {
 
 	it('POST /api/timeline/notes validates content and stores note', async () => {
 		const { env, dispose } = await createTestEnv();
-		mockCloudflare(env);
+		await mockCloudflare(env);
 		const { POST } = await import('@/app/api/timeline/notes/route');
 
 		const emptyServer = createRouteTester(POST);

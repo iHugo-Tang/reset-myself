@@ -21,16 +21,21 @@ import { createTestEnv } from '../helpers/testDb';
 describe('db/goals', () => {
 	let env: EnvWithD1;
 	let dispose: () => void;
+	let originalDateNow: typeof Date.now;
 
 	const setup = async () => {
 		const created = await createTestEnv();
 		env = created.env;
 		dispose = created.dispose;
-		vi.setSystemTime(new Date('2024-02-11T12:00:00Z'));
+		originalDateNow = Date.now;
+		Date.now = () => new Date('2024-02-11T12:00:00Z').getTime();
 		return created.db;
 	};
 
 	const teardown = () => {
+		if (originalDateNow) {
+			Date.now = originalDateNow;
+		}
 		dispose?.();
 	};
 
