@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
 	addDaysUtc,
@@ -73,7 +73,6 @@ describe('utils/time', () => {
 
 		const originalFormatter = Intl.DateTimeFormat;
 		let first = true;
-		// @ts-expect-error override for test
 		Intl.DateTimeFormat = function (...args: any[]) {
 			if (first) {
 				first = false;

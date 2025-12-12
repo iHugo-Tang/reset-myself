@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, vi } from 'vitest';
 
-process.env.NODE_ENV = 'test';
+(process.env as any).NODE_ENV = 'test';
 
 beforeEach(() => {
 	vi.useRealTimers();

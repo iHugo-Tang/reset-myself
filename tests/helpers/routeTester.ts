@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server';
 
-type Handler = (req: NextRequest, ctx?: { params?: Promise<Record<string, string>> }) => Promise<Response>;
+// Test helper: keep handler type loose to support Next route handler variations.
+// These handlers' ctx types differ per route segment (e.g. { id: string }), and
+// strict typing here creates noisy TS errors in tests without adding much value.
+type Handler = (req: NextRequest, ctx: { params: Promise<any> }) => Response | Promise<Response>;
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
@@ -64,7 +67,9 @@ class RequestBuilder {
 			headers: Object.fromEntries(this.headers.entries()),
 			body: this.buildBody(),
 		};
-		const request = new NextRequest(`http://localhost${this.url}`, init);
+		// The NextRequest type expects standard RequestInit; in some environments
+		// (e.g. when Cloudflare fetch types are present) this can become incompatible.
+		const request = new NextRequest(`http://localhost${this.url}`, init as any);
 		const response = await this.handler(request, { params: Promise.resolve(this.params ?? {}) });
 		const buffer = Buffer.from(await response.arrayBuffer());
 		const text = buffer.toString('utf8');
@@ -100,7 +105,7 @@ class RequestBuilder {
 	}
 }
 
-export const createRouteTester = (handler: Handler, params?: Record<string, string>) => {
+export const createRouteTester = (handler: any, params?: Record<string, string>) => {
 	return {
 		request: {
 			get: (url: string) => new RequestBuilder(handler, 'GET', url, params),

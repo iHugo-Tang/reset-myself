@@ -8,24 +8,17 @@ import { goals } from '../../drizzle/schema';
 import { createRouteTester } from '../helpers/routeTester';
 import { createTestEnv } from '../helpers/testDb';
 
-const mockCloudflare = async (env: EnvWithD1) => {
-	if (typeof (globalThis as { vi?: typeof vi }).vi?.mock === 'function') {
-		vi.mock('@opennextjs/cloudflare', () => ({
-			getCloudflareContext: () => ({ env }),
-		}));
-		return;
-	}
+// Vitest hoists `vi.mock` calls, so capturing a function param like `env`
+// inside the mock factory can lead to `ReferenceError: env is not defined`.
+// Use a module-scoped variable instead.
+let mockedCloudflareEnv: EnvWithD1 | undefined;
 
-	// Bun test fallback
-	if (typeof process !== 'undefined' && (process as NodeJS.Process).versions?.bun) {
-		const { mock } = await import('bun:test');
-		mock.module('@opennextjs/cloudflare', () => ({
-			getCloudflareContext: () => ({ env }),
-		}));
-		return;
-	}
+vi.mock('@opennextjs/cloudflare', () => ({
+	getCloudflareContext: () => ({ env: mockedCloudflareEnv }),
+}));
 
-	throw new Error('No mocking framework available');
+const mockCloudflare = (env: EnvWithD1) => {
+	mockedCloudflareEnv = env;
 };
 
 describe('API routes', () => {
