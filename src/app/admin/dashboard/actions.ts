@@ -6,6 +6,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { createGoal, recordGoalCompletion, updateGoalTarget } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
+import { requireUserIdFromServer } from '@/lib/auth/user';
 
 const getEnv = () => getRequestContext().env as unknown as EnvWithD1;
 const getTimeSettings = async () =>
@@ -28,8 +29,10 @@ export const createGoalAction = async (formData: FormData): Promise<void> => {
   const time = await getTimeSettings();
 
   try {
+    const userId = await requireUserIdFromServer();
     await createGoal(
       getEnv(),
+      userId,
       { title, description, dailyTargetCount },
       { offsetMinutes: time.offsetMinutes }
     );
@@ -52,7 +55,8 @@ export const updateGoalTargetAction = async (
   if (!goalId) return;
 
   try {
-    await updateGoalTarget(getEnv(), goalId, dailyTargetCount);
+    const userId = await requireUserIdFromServer();
+    await updateGoalTarget(getEnv(), userId, goalId, dailyTargetCount);
     revalidatePath('/admin/dashboard');
   } catch (error) {
     console.error('updateGoalTargetAction error', error);
@@ -74,7 +78,8 @@ export const recordCompletionAction = async (
   const targetDate = date || toDateKey(Date.now(), time.offsetMinutes);
 
   try {
-    await recordGoalCompletion(getEnv(), goalId, count, targetDate, {
+    const userId = await requireUserIdFromServer();
+    await recordGoalCompletion(getEnv(), userId, goalId, count, targetDate, {
       offsetMinutes: time.offsetMinutes,
     });
     revalidatePath('/admin/dashboard');

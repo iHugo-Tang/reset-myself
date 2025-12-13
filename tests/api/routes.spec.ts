@@ -12,9 +12,16 @@ import { createTestEnv } from '../helpers/testDb';
 // inside the mock factory can lead to `ReferenceError: env is not defined`.
 // Use a module-scoped variable instead.
 let mockedCloudflareEnv: EnvWithD1 | undefined;
+let mockedUserId = 'user-a';
 
 vi.mock('@opennextjs/cloudflare', () => ({
   getCloudflareContext: () => ({ env: mockedCloudflareEnv }),
+}));
+
+vi.mock('@/lib/auth/user', () => ({
+  requireUserIdFromRequest: async () => mockedUserId,
+  requireUserIdFromServer: async () => mockedUserId,
+  getUserIdFromRequest: async () => mockedUserId,
 }));
 
 const mockCloudflare = (env: EnvWithD1) => {
@@ -48,7 +55,7 @@ describe('API routes', () => {
   it('GET /api/goals returns dashboard data and surfaces errors', async () => {
     const { env, dispose } = await createTestEnv();
     await mockCloudflare(env);
-    await createGoal(env, { title: 'X', dailyTargetCount: 1 });
+    await createGoal(env, mockedUserId, { title: 'X', dailyTargetCount: 1 });
 
     const { GET } = await import('@/app/api/goals/route');
     const okServer = createRouteTester(GET);
@@ -70,7 +77,10 @@ describe('API routes', () => {
   it('GET /api/goals/[id] returns a goal or errors', async () => {
     const { env, dispose } = await createTestEnv();
     await mockCloudflare(env);
-    const goal = await createGoal(env, { title: 'ById', dailyTargetCount: 1 });
+    const goal = await createGoal(env, mockedUserId, {
+      title: 'ById',
+      dailyTargetCount: 1,
+    });
 
     const { GET } = await import('@/app/api/goals/[id]/route');
 
@@ -177,7 +187,10 @@ describe('API routes', () => {
     expect(missingRedirectRes.headers.location).toContain('missing_goal_id');
     await missingRedirectServer.close();
 
-    const goal = await createGoal(env, { title: 'Comp', dailyTargetCount: 1 });
+    const goal = await createGoal(env, mockedUserId, {
+      title: 'Comp',
+      dailyTargetCount: 1,
+    });
     const okServer = createRouteTester(POST, { id: String(goal.id) });
     const okRes = await okServer.request
       .post(`/api/goals/${goal.id}/completion`)
@@ -218,7 +231,7 @@ describe('API routes', () => {
     vi.spyOn(goalsModule, 'recordGoalCompletion').mockRejectedValueOnce(
       new Error('fail')
     );
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, mockedUserId, {
       title: 'Redirect',
       dailyTargetCount: 1,
     });
@@ -246,7 +259,7 @@ describe('API routes', () => {
     expect(missingRes.headers.location).toContain('?error=missing_goal_id');
     await missingServer.close();
 
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, mockedUserId, {
       title: 'Target',
       dailyTargetCount: 1,
     });
@@ -293,7 +306,10 @@ describe('API routes', () => {
     const { env, dispose } = await createTestEnv();
     await mockCloudflare(env);
     const goalsModule = await import('@/db/goals');
-    const goal = await createGoal(env, { title: 'Err', dailyTargetCount: 1 });
+    const goal = await createGoal(env, mockedUserId, {
+      title: 'Err',
+      dailyTargetCount: 1,
+    });
     vi.spyOn(goalsModule, 'updateGoalTarget').mockRejectedValueOnce(
       new Error('fail')
     );
@@ -396,7 +412,10 @@ describe('API routes', () => {
     expect(missingRedirectRes.headers.location).toContain('missing_goal_id');
     await missingRedirect.close();
 
-    const goal = await createGoal(env, { title: 'CRUD', dailyTargetCount: 1 });
+    const goal = await createGoal(env, mockedUserId, {
+      title: 'CRUD',
+      dailyTargetCount: 1,
+    });
     const redirectDelete = createRouteTester(POST, { id: String(goal.id) });
     const redirectRes = await redirectDelete.request.post(
       `/api/goals/${goal.id}`
@@ -440,7 +459,7 @@ describe('API routes', () => {
     expect(missingPatchRes.status).toBe(400);
     await missingPatch.close();
 
-    const goal2 = await createGoal(env, {
+    const goal2 = await createGoal(env, mockedUserId, {
       title: 'CRUD2',
       dailyTargetCount: 1,
     });
@@ -480,7 +499,12 @@ describe('API routes', () => {
     expect(missingRes.status).toBe(400);
     await missingServer.close();
 
-    const note = await createTimelineNote(env, 'persist me', '2024-02-10');
+    const note = await createTimelineNote(
+      env,
+      mockedUserId,
+      'persist me',
+      '2024-02-10'
+    );
     const deleteServer = createRouteTester(DELETE, { id: String(note.id) });
     const deleteRes = await deleteServer.request.delete(
       `/api/timeline/notes/${note.id}`

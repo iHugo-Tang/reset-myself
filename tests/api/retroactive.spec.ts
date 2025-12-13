@@ -9,9 +9,16 @@ import { createRouteTester } from '../helpers/routeTester';
 import { createTestEnv } from '../helpers/testDb';
 
 let mockedCloudflareEnv: EnvWithD1 | undefined;
+let mockedUserId = 'user-a';
 
 vi.mock('@opennextjs/cloudflare', () => ({
   getCloudflareContext: () => ({ env: mockedCloudflareEnv }),
+}));
+
+vi.mock('@/lib/auth/user', () => ({
+  requireUserIdFromRequest: async () => mockedUserId,
+  requireUserIdFromServer: async () => mockedUserId,
+  getUserIdFromRequest: async () => mockedUserId,
 }));
 
 const mockCloudflare = (env: EnvWithD1) => {
@@ -22,7 +29,10 @@ describe('Retroactive goal completion', () => {
   it('records completion for supplied date and logs timeline event', async () => {
     const { env, dispose } = await createTestEnv();
     mockCloudflare(env);
-    const goal = await createGoal(env, { title: 'Retro', dailyTargetCount: 2 });
+    const goal = await createGoal(env, mockedUserId, {
+      title: 'Retro',
+      dailyTargetCount: 2,
+    });
     const targetDate = '2023-05-10';
     const { POST } = await import('@/app/api/goals/[id]/completion/route');
 
@@ -52,6 +62,7 @@ describe('Retroactive goal completion', () => {
       .from(timelineEvents)
       .where(
         and(
+          eq(timelineEvents.userId, mockedUserId),
           eq(timelineEvents.goalId, goal.id),
           eq(timelineEvents.date, targetDate),
           eq(timelineEvents.type, 'checkin')
@@ -66,7 +77,7 @@ describe('Retroactive goal completion', () => {
   it('rejects invalid date formats', async () => {
     const { env, dispose } = await createTestEnv();
     mockCloudflare(env);
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, mockedUserId, {
       title: 'Retro2',
       dailyTargetCount: 1,
     });

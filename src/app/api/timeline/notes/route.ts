@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createTimelineNote } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings } from '@/utils/time';
+import { requireUserIdFromRequest } from '@/lib/auth/user';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 const MAX_LEN = 280;
@@ -50,7 +51,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const note = await createTimelineNote(getEnv(), raw, undefined, {
+    const userId = await requireUserIdFromRequest(req);
+    const note = await createTimelineNote(getEnv(), userId, raw, undefined, {
       offsetMinutes: time.offsetMinutes,
     });
     return wantsJson
@@ -58,6 +60,9 @@ export async function POST(req: NextRequest) {
       : NextResponse.redirect(new URL('/timeline', req.url));
   } catch (error) {
     console.error('POST /api/timeline/notes error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return reply({ success: false, message: 'Unauthorized' }, 401);
+    }
     return reply(
       { success: false, message: 'Unable to save. Please try again soon.' },
       500

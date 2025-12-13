@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateGoalTarget } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { requireUserIdFromRequest } from '@/lib/auth/user';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
@@ -43,10 +44,21 @@ export async function POST(
   }
 
   try {
-    await updateGoalTarget(getEnv(), goalId, dailyTargetCount);
+    const userId = await requireUserIdFromRequest(request);
+    await updateGoalTarget(getEnv(), userId, goalId, dailyTargetCount);
     return isJson ? jsonResponse({ ok: true }) : redirect('');
   } catch (error) {
     console.error('POST /api/goals/[id]/target error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return isJson
+        ? jsonResponse({ ok: false, error: 'unauthorized' }, 401)
+        : NextResponse.redirect(new URL('/login', request.url));
+    }
+    if (error instanceof Error && error.message === 'goal_not_found') {
+      return isJson
+        ? jsonResponse({ ok: false, error: 'goal_not_found' }, 404)
+        : redirect('?error=goal_not_found');
+    }
     return isJson
       ? jsonResponse({ ok: false, error: 'update_target_failed' }, 500)
       : redirect('?error=update_target_failed');

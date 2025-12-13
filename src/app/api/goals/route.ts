@@ -3,21 +3,29 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createGoal, getDashboardData } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings } from '@/utils/time';
+import { requireUserIdFromRequest } from '@/lib/auth/user';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await requireUserIdFromRequest(req);
     const time = resolveRequestTimeSettings({
       cookies: req.cookies,
       cookieHeader: req.headers.get('cookie'),
     });
-    const data = await getDashboardData(getEnv(), 90, {
+    const data = await getDashboardData(getEnv(), userId, 90, {
       offsetMinutes: time.offsetMinutes,
     });
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('GET /api/goals error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: 'Failed to fetch goals' },
       { status: 500 }
@@ -80,8 +88,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const userId = await requireUserIdFromRequest(req);
     await createGoal(
       getEnv(),
+      userId,
       {
         title,
         description,
@@ -94,6 +104,14 @@ export async function POST(req: NextRequest) {
     return isJson ? NextResponse.json({ success: true }) : redirect('');
   } catch (error) {
     console.error('POST /api/goals error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return isJson
+        ? NextResponse.json(
+            { success: false, error: 'unauthorized' },
+            { status: 401 }
+          )
+        : NextResponse.redirect(new URL('/login', req.url));
+    }
     return isJson
       ? NextResponse.json(
           { success: false, error: 'create_failed' },

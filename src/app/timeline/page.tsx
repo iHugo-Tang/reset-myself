@@ -18,6 +18,7 @@ import {
 } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
+import { requireUserIdFromServer } from '@/lib/auth/user';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TimelinePage() {
+  const userId = await requireUserIdFromServer();
   const headerList = await headers();
   const cookieStore = await cookies();
   const timeSettings = resolveRequestTimeSettings({
@@ -39,9 +41,9 @@ export default async function TimelinePage() {
   const env = getEnv();
 
   const [eventsData, stats, todayItems] = await Promise.all([
-    getTimelineEventsInfinite(env, 20),
-    getTimelineStats(env, 370),
-    getTodayStatus(env),
+    getTimelineEventsInfinite(env, userId, 20),
+    getTimelineStats(env, userId, 370),
+    getTodayStatus(env, userId),
   ]);
 
   const todayKey = toDateKey(Date.now(), 0);

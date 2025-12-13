@@ -14,6 +14,7 @@ describe('db/timeline_dedup', () => {
   let env: EnvWithD1;
   let dispose: () => void;
   let originalDateNow: typeof Date.now;
+  const userId = 'user-a';
 
   const setup = async () => {
     const created = await createTestEnv();
@@ -34,7 +35,7 @@ describe('db/timeline_dedup', () => {
 
   it('deduplicates checkins on read (legacy data) and write (new data)', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userId, {
       title: 'Dedupe Me',
       dailyTargetCount: 5,
     });
@@ -42,6 +43,7 @@ describe('db/timeline_dedup', () => {
 
     // 1. Simulate LEGACY duplicate data by manually inserting
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -49,6 +51,7 @@ describe('db/timeline_dedup', () => {
       createdAt: '2024-02-11T10:00:00Z',
     });
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -57,6 +60,7 @@ describe('db/timeline_dedup', () => {
     });
     // Latest one
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -72,14 +76,14 @@ describe('db/timeline_dedup', () => {
     expect(rawEvents).toHaveLength(3);
 
     // Verify READ logic deduplicates (should return 1 - the latest)
-    const result = await getTimelineEventsInfinite(env, 10);
+    const result = await getTimelineEventsInfinite(env, userId, 10);
     const checkinEvents = result.events.filter((e) => e.type === 'checkin');
 
     expect(checkinEvents).toHaveLength(1);
     expect(checkinEvents[0].newCount).toBe(3); // Should be the latest one
 
     // 2. Verify WRITE logic prevents duplicates
-    await recordGoalCompletion(env, goal.id, 1, today);
+    await recordGoalCompletion(env, userId, goal.id, 1, today);
 
     // Now raw events should be 1 (the newly inserted one, replacing the 3 old ones)
     rawEvents = await db
@@ -94,7 +98,7 @@ describe('db/timeline_dedup', () => {
 
   it('preserves checkins on different dates', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userId, {
       title: 'Different Dates',
       dailyTargetCount: 5,
     });
@@ -103,6 +107,7 @@ describe('db/timeline_dedup', () => {
 
     // Insert checkin for today
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -112,6 +117,7 @@ describe('db/timeline_dedup', () => {
 
     // Insert checkin for yesterday
     await db.insert(timelineEvents).values({
+      userId,
       date: yesterday,
       type: 'checkin',
       goalId: goal.id,
@@ -120,7 +126,7 @@ describe('db/timeline_dedup', () => {
     });
 
     // Verify READ logic returns both
-    const result = await getTimelineEventsInfinite(env, 10);
+    const result = await getTimelineEventsInfinite(env, userId, 10);
     const checkinEvents = result.events.filter((e) => e.type === 'checkin');
 
     expect(checkinEvents).toHaveLength(2);
@@ -131,7 +137,7 @@ describe('db/timeline_dedup', () => {
     );
 
     // Verify WRITE logic on today doesn't delete yesterday
-    await recordGoalCompletion(env, goal.id, 1, today);
+    await recordGoalCompletion(env, userId, goal.id, 1, today);
 
     const rawEvents = await db
       .select()
@@ -148,7 +154,7 @@ describe('db/timeline_dedup', () => {
 
   it('cleanup script SQL works correctly', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userId, {
       title: 'Cleanup Me',
       dailyTargetCount: 5,
     });
@@ -156,6 +162,7 @@ describe('db/timeline_dedup', () => {
 
     // Insert 3 checkin events
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -163,6 +170,7 @@ describe('db/timeline_dedup', () => {
       createdAt: '2024-02-11T10:00:00Z',
     });
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -171,6 +179,7 @@ describe('db/timeline_dedup', () => {
     });
     // Latest one - payload newCount: 3
     await db.insert(timelineEvents).values({
+      userId,
       date: today,
       type: 'checkin',
       goalId: goal.id,
@@ -187,7 +196,7 @@ describe('db/timeline_dedup', () => {
           FROM (
             SELECT id,
               ROW_NUMBER() OVER (
-                PARTITION BY date, goal_id
+                PARTITION BY user_id, date, goal_id
                 ORDER BY created_at DESC, id DESC
               ) as rn
             FROM timeline_events

@@ -29,6 +29,8 @@ describe('db/goals', () => {
   let env: EnvWithD1;
   let dispose: () => void;
   let originalDateNow: typeof Date.now;
+  const userA = 'user-a';
+  const userB = 'user-b';
 
   const setup = async () => {
     const created = await createTestEnv();
@@ -48,7 +50,10 @@ describe('db/goals', () => {
 
   it('creates goals with defaults and logs lifecycle event', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'Read', dailyTargetCount: 2 });
+    const goal = await createGoal(env, userA, {
+      title: 'Read',
+      dailyTargetCount: 2,
+    });
     expect(goal.icon).toBe('Target');
     expect(goal.color).toBe('#10b981');
 
@@ -59,24 +64,25 @@ describe('db/goals', () => {
     expect(events).toHaveLength(1);
     expect(events[0].type).toBe('goal_created');
     expect(events[0].payload).toMatchObject({ title: 'Read' });
+    expect(events[0].userId).toBe(userA);
     teardown();
   });
 
   it('updates goals, enforces validation, and trims values', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: ' Lift ',
       dailyTargetCount: 1,
     });
 
-    await expect(updateGoal(env, goal.id, { title: '' })).rejects.toThrow(
+    await expect(updateGoal(env, userA, goal.id, { title: '' })).rejects.toThrow(
       'title_required'
     );
     await expect(
-      updateGoal(env, goal.id, { dailyTargetCount: 0 })
+      updateGoal(env, userA, goal.id, { dailyTargetCount: 0 })
     ).rejects.toThrow('daily_target_invalid');
 
-    await updateGoal(env, goal.id, {
+    await updateGoal(env, userA, goal.id, {
       title: '  New Title  ',
       description: ' spaced  ',
       icon: '  ',
@@ -98,8 +104,11 @@ describe('db/goals', () => {
 
   it('updates goal target independently', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'Write', dailyTargetCount: 1 });
-    await updateGoalTarget(env, goal.id, 5);
+    const goal = await createGoal(env, userA, {
+      title: 'Write',
+      dailyTargetCount: 1,
+    });
+    await updateGoalTarget(env, userA, goal.id, 5);
 
     const [updated] = await db
       .select()
@@ -111,11 +120,14 @@ describe('db/goals', () => {
 
   it('records goal completions, aggregates counts, and logs timeline events', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'Run', dailyTargetCount: 2 });
+    const goal = await createGoal(env, userA, {
+      title: 'Run',
+      dailyTargetCount: 2,
+    });
 
     const today = toDateKey(Date.now(), 0);
-    await recordGoalCompletion(env, goal.id, 2, today);
-    await recordGoalCompletion(env, goal.id, 1, today);
+    await recordGoalCompletion(env, userA, goal.id, 2, today);
+    await recordGoalCompletion(env, userA, goal.id, 1, today);
 
     const [completion] = await db
       .select()
@@ -139,7 +151,7 @@ describe('db/goals', () => {
       target: 2,
     });
 
-    await expect(recordGoalCompletion(env, 999, 1)).rejects.toThrow(
+    await expect(recordGoalCompletion(env, userA, 999, 1)).rejects.toThrow(
       'goal_not_found'
     );
     teardown();
@@ -147,13 +159,19 @@ describe('db/goals', () => {
 
   it('creates timeline notes, validates input, and deletes with cascade', async () => {
     const db = await setup();
-    await expect(createTimelineNote(env, '   ')).rejects.toThrow(
+    await expect(createTimelineNote(env, userA, '   ')).rejects.toThrow(
       'content_required'
     );
 
-    const note = await createTimelineNote(env, 'Hello world', '2024-02-10');
+    const note = await createTimelineNote(
+      env,
+      userA,
+      'Hello world',
+      '2024-02-10'
+    );
     const notes = await db.select().from(timelineNotes);
     expect(notes).toHaveLength(1);
+    expect(notes[0].userId).toBe(userA);
 
     const events = await db
       .select()
@@ -162,10 +180,10 @@ describe('db/goals', () => {
     expect(events).toHaveLength(1);
     expect(events[0].payload).toMatchObject({ content: 'Hello world' });
 
-    await expect(deleteTimelineNote(env, 0)).rejects.toThrow(
+    await expect(deleteTimelineNote(env, userA, 0)).rejects.toThrow(
       'note_id_required'
     );
-    await deleteTimelineNote(env, note.id);
+    await deleteTimelineNote(env, userA, note.id);
     const remainingNotes = await db.select().from(timelineNotes);
     expect(remainingNotes).toHaveLength(0);
     const remainingEvents = await db
@@ -178,13 +196,13 @@ describe('db/goals', () => {
 
   it('deletes goals and logs goal_deleted events when present', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'Swim',
       dailyTargetCount: 1,
       icon: 'Fish',
       color: '#000000',
     });
-    await deleteGoal(env, goal.id);
+    await deleteGoal(env, userA, goal.id);
 
     const events = await db
       .select()
@@ -198,22 +216,22 @@ describe('db/goals', () => {
     });
 
     // Deleting again should be a no-op without throwing
-    await deleteGoal(env, goal.id);
+    await deleteGoal(env, userA, goal.id);
     teardown();
   });
 
   it('returns dashboard data with streak and heatmap computed', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'Stretch',
       dailyTargetCount: 2,
     });
 
-    await recordGoalCompletion(env, goal.id, 2, '2024-02-11'); // today
-    await recordGoalCompletion(env, goal.id, 2, '2024-02-10');
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-09');
+    await recordGoalCompletion(env, userA, goal.id, 2, '2024-02-11'); // today
+    await recordGoalCompletion(env, userA, goal.id, 2, '2024-02-10');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-09');
 
-    const data = await getDashboardData(env, 3, { offsetMinutes: 0 });
+    const data = await getDashboardData(env, userA, 3, { offsetMinutes: 0 });
     expect(data).toHaveLength(1);
     expect(data[0].streak).toBe(3);
     expect(data[0].totalCompletedDays).toBe(3);
@@ -222,19 +240,22 @@ describe('db/goals', () => {
     // Also cover the case with no goals
     await db.delete(goalCompletions).where(eq(goalCompletions.goalId, goal.id));
     await db.delete(goals).where(eq(goals.id, goal.id));
-    const empty = await getDashboardData(env, 3, { offsetMinutes: 0 });
+    const empty = await getDashboardData(env, userA, 3, { offsetMinutes: 0 });
     expect(empty).toEqual([]);
     teardown();
   });
 
   it('computes goal streak from yesterday when today has no completion', async () => {
     await setup();
-    const goal = await createGoal(env, { title: 'Meditate', dailyTargetCount: 1 });
+    const goal = await createGoal(env, userA, {
+      title: 'Meditate',
+      dailyTargetCount: 1,
+    });
 
-    await recordGoalCompletion(env, goal.id, 2, '2024-02-10');
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-09');
+    await recordGoalCompletion(env, userA, goal.id, 2, '2024-02-10');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-09');
 
-    const data = await getDashboardData(env, 3, { offsetMinutes: 0 });
+    const data = await getDashboardData(env, userA, 3, { offsetMinutes: 0 });
     expect(data).toHaveLength(1);
     expect(data[0].streak).toBe(2);
     expect(data[0].totalCompletedDays).toBe(2);
@@ -244,27 +265,28 @@ describe('db/goals', () => {
 
   it('builds timeline data with summaries, legacy notes, and sorted events', async () => {
     const db = await setup();
-    const goalA = await createGoal(env, {
+    const goalA = await createGoal(env, userA, {
       title: 'Goal A',
       dailyTargetCount: 1,
       icon: 'A',
       color: '#111',
     });
-    const goalB = await createGoal(env, {
+    const goalB = await createGoal(env, userA, {
       title: 'Goal B',
       dailyTargetCount: 1,
       icon: 'B',
       color: '#222',
     });
 
-    await recordGoalCompletion(env, goalA.id, 1, '2024-02-10');
-    await recordGoalCompletion(env, goalB.id, 1, '2024-02-10');
-    await recordGoalCompletion(env, goalA.id, 1, '2024-02-09');
-    await recordGoalCompletion(env, goalA.id, 1, '2024-02-11');
-    await recordGoalCompletion(env, goalB.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goalA.id, 1, '2024-02-10');
+    await recordGoalCompletion(env, userA, goalB.id, 1, '2024-02-10');
+    await recordGoalCompletion(env, userA, goalA.id, 1, '2024-02-09');
+    await recordGoalCompletion(env, userA, goalA.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goalB.id, 1, '2024-02-11');
 
     // Create an event missing numeric fields to exercise parseNumber fallbacks
     await db.insert(timelineEvents).values({
+      userId: userA,
       date: '2024-02-09',
       type: 'checkin',
       goalId: goalA.id,
@@ -282,18 +304,20 @@ describe('db/goals', () => {
 
     // Legacy note with corresponding event (simulating backfill)
     await db.insert(timelineNotes).values({
+      userId: userA,
       content: 'Legacy',
       date: '2024-02-09',
       createdAt: '2024-02-09T02:00:00Z',
     });
     await db.insert(timelineEvents).values({
+      userId: userA,
       date: '2024-02-09',
       type: 'note',
       createdAt: '2024-02-09T02:00:00Z',
       payload: { content: 'Legacy', noteId: 999 }, // ID doesn't matter for this test
     });
 
-    const timeline = await getTimelineData(env, 3, { offsetMinutes: 0 });
+    const timeline = await getTimelineData(env, userA, 3, { offsetMinutes: 0 });
     expect(timeline.streak).toBe(2);
 
     const day9 = timeline.days.find((d) => d.date === '2024-02-09');
@@ -307,12 +331,16 @@ describe('db/goals', () => {
 
   it('adds multiple event types to timeline data including goal deletion and note events', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'Temp', dailyTargetCount: 1 });
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
-    await createTimelineNote(env, 'event note', '2024-02-11');
+    const goal = await createGoal(env, userA, {
+      title: 'Temp',
+      dailyTargetCount: 1,
+    });
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-11');
+    await createTimelineNote(env, userA, 'event note', '2024-02-11');
 
     // Insert a malformed checkin event to exercise null goal guard
     await db.insert(timelineEvents).values({
+      userId: userA,
       date: '2024-02-11',
       type: 'checkin',
       goalId: null,
@@ -321,6 +349,7 @@ describe('db/goals', () => {
     });
 
     await db.insert(timelineEvents).values({
+      userId: userA,
       date: '2024-02-11',
       type: 'note',
       goalId: null,
@@ -329,6 +358,7 @@ describe('db/goals', () => {
     });
 
     await db.insert(timelineEvents).values({
+      userId: userA,
       date: '2024-02-11',
       type: 'other',
       goalId: null,
@@ -336,8 +366,8 @@ describe('db/goals', () => {
       createdAt: '2024-02-11T12:10:00Z',
     });
 
-    await deleteGoal(env, goal.id);
-    const timeline = await getTimelineData(env, 1, { offsetMinutes: 0 });
+    await deleteGoal(env, userA, goal.id);
+    const timeline = await getTimelineData(env, userA, 1, { offsetMinutes: 0 });
     expect(
       timeline.days[0]?.events.some((e) => e.type === 'goal_deleted')
     ).toBe(true);
@@ -350,11 +380,14 @@ describe('db/goals', () => {
 
   it('falls back to timeline streak when no summaries exist', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'Solo', dailyTargetCount: 1 });
+    const goal = await createGoal(env, userA, {
+      title: 'Solo',
+      dailyTargetCount: 1,
+    });
     const todayKey = toDateKey(Date.now(), 0);
-    await recordGoalCompletion(env, goal.id, 1, todayKey);
+    await recordGoalCompletion(env, userA, goal.id, 1, todayKey);
 
-    const timeline = await getTimelineData(env, 1, { offsetMinutes: 0 });
+    const timeline = await getTimelineData(env, userA, 1, { offsetMinutes: 0 });
     expect(timeline.streak).toBe(1);
     expect(timeline.days[0].date).toBe(todayKey);
     teardown();
@@ -362,17 +395,20 @@ describe('db/goals', () => {
 
   it('computes timeline streak from yesterday when today is incomplete (no summaries)', async () => {
     await setup();
-    const goal = await createGoal(env, { title: 'Duo', dailyTargetCount: 1 });
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-10');
+    const goal = await createGoal(env, userA, {
+      title: 'Duo',
+      dailyTargetCount: 1,
+    });
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-10');
 
-    const timeline = await getTimelineData(env, 2, { offsetMinutes: 0 });
+    const timeline = await getTimelineData(env, userA, 2, { offsetMinutes: 0 });
     expect(timeline.streak).toBe(1);
     teardown();
   });
 
   it('backfills daily summaries across ranges and handles invalid ranges gracefully', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'Backfill',
       dailyTargetCount: 1,
     });
@@ -380,10 +416,12 @@ describe('db/goals', () => {
       .update(goals)
       .set({ createdAt: '2024-02-08T00:00:00Z' })
       .where(eq(goals.id, goal.id));
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-10');
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-09');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-10');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-09');
 
-    const result = await backfillDailySummaries(env, { offsetMinutes: 0 });
+    const result = await backfillDailySummaries(env, userA, {
+      offsetMinutes: 0,
+    });
     expect(result.upserted).toBeGreaterThan(0);
     const summaries = await db
       .select()
@@ -396,7 +434,9 @@ describe('db/goals', () => {
       .update(goals)
       .set({ createdAt: '2099-01-01T00:00:00Z' })
       .where(eq(goals.id, goal.id));
-    const skipped = await backfillDailySummaries(env, { offsetMinutes: 0 });
+    const skipped = await backfillDailySummaries(env, userA, {
+      offsetMinutes: 0,
+    });
     expect(skipped.upserted).toBe(0);
 
     // Invalid date should also short circuit
@@ -404,27 +444,29 @@ describe('db/goals', () => {
       .update(goals)
       .set({ createdAt: 'invalid' })
       .where(eq(goals.id, goal.id));
-    const invalid = await backfillDailySummaries(env, { offsetMinutes: 0 });
+    const invalid = await backfillDailySummaries(env, userA, {
+      offsetMinutes: 0,
+    });
     expect(invalid.upserted).toBe(0);
     teardown();
   });
 
   it('returns zero when backfilling with no goals present', async () => {
     await setup();
-    const result = await backfillDailySummaries(env, { offsetMinutes: 0 });
+    const result = await backfillDailySummaries(env, userA, { offsetMinutes: 0 });
     expect(result.upserted).toBe(0);
     teardown();
   });
 
   it('updates goal without optional payload fields', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'NoOps',
       dailyTargetCount: 1,
       icon: 'Target',
       color: '#aaa',
     });
-    await updateGoal(env, goal.id, {});
+    await updateGoal(env, userA, goal.id, {});
     const [updated] = await db
       .select()
       .from(goals)
@@ -437,11 +479,17 @@ describe('db/goals', () => {
 
   it('generates summary events when all goals completed', async () => {
     const db = await setup();
-    const goal1 = await createGoal(env, { title: 'G1', dailyTargetCount: 1 });
-    const goal2 = await createGoal(env, { title: 'G2', dailyTargetCount: 1 });
+    const goal1 = await createGoal(env, userA, {
+      title: 'G1',
+      dailyTargetCount: 1,
+    });
+    const goal2 = await createGoal(env, userA, {
+      title: 'G2',
+      dailyTargetCount: 1,
+    });
 
     // Complete one goal - no summary
-    await recordGoalCompletion(env, goal1.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal1.id, 1, '2024-02-11');
     let events = await db
       .select()
       .from(timelineEvents)
@@ -454,7 +502,7 @@ describe('db/goals', () => {
     expect(events).toHaveLength(0);
 
     // Complete second goal - summary created
-    await recordGoalCompletion(env, goal2.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal2.id, 1, '2024-02-11');
     events = await db
       .select()
       .from(timelineEvents)
@@ -468,7 +516,7 @@ describe('db/goals', () => {
     expect(events[0].payload).toMatchObject({ allGoalsCompleted: true });
 
     // Check getTimelineData uses it
-    const timeline = await getTimelineData(env, 1, { offsetMinutes: 0 });
+    const timeline = await getTimelineData(env, userA, 1, { offsetMinutes: 0 });
     const summaryEvent = timeline.days[0].events.find(
       (e) => e.type === 'summary'
     );
@@ -476,7 +524,7 @@ describe('db/goals', () => {
     expect(summaryEvent?.id).toMatch(/^event-/);
 
     // Un-complete a goal - summary should be removed
-    await recordGoalCompletion(env, goal2.id, -1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal2.id, -1, '2024-02-11');
     events = await db
       .select()
       .from(timelineEvents)
@@ -495,22 +543,27 @@ describe('db/goals', () => {
     const db = await setup();
     // Create events to span multiple pages
     // 1. Goal Created
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'Scroll Goal',
       dailyTargetCount: 1,
     });
     // 2. Note
-    await createTimelineNote(env, 'Note 1', '2024-02-11');
+    await createTimelineNote(env, userA, 'Note 1', '2024-02-11');
     // 3. Checkin
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-11');
 
     // Fetch page 1 (limit 2) - should return Summary (if generated) and Checkin
-    const page1 = await getTimelineEventsInfinite(env, 2);
+    const page1 = await getTimelineEventsInfinite(env, userA, 2);
     expect(page1.events).toHaveLength(2);
     expect(page1.nextCursor).toBeTruthy();
 
     // Fetch page 2 (limit 2) - should return Note and Goal Created
-    const page2 = await getTimelineEventsInfinite(env, 2, page1.nextCursor!);
+    const page2 = await getTimelineEventsInfinite(
+      env,
+      userA,
+      2,
+      page1.nextCursor!
+    );
     expect(page2.events).toHaveLength(2);
     expect(page2.nextCursor).toBeNull();
 
@@ -526,6 +579,7 @@ describe('db/goals', () => {
     // Test invalid cursor (graceful fallback to first page)
     const invalidPage = await getTimelineEventsInfinite(
       env,
+      userA,
       2,
       'invalid-cursor'
     );
@@ -537,11 +591,11 @@ describe('db/goals', () => {
 
   it('stores timestamps in ISO 8601 UTC format (ending with Z)', async () => {
     const db = await setup();
-    const goal = await createGoal(env, {
+    const goal = await createGoal(env, userA, {
       title: 'UTC Check',
       dailyTargetCount: 1,
     });
-    const note = await createTimelineNote(env, 'UTC Note', '2024-02-11');
+    const note = await createTimelineNote(env, userA, 'UTC Note', '2024-02-11');
 
     // Check Goal
     const [fetchedGoal] = await db
@@ -568,37 +622,86 @@ describe('db/goals', () => {
 
   it('updates daily_summaries on goal completion', async () => {
     const db = await setup();
-    const goal = await createGoal(env, { title: 'DS', dailyTargetCount: 2 });
+    const goal = await createGoal(env, userA, {
+      title: 'DS',
+      dailyTargetCount: 2,
+    });
 
     // Initial check - no summary
     let summaries = await db
       .select()
       .from(dailySummaries)
-      .where(eq(dailySummaries.date, '2024-02-11'));
+      .where(
+        and(
+          eq(dailySummaries.userId, userA),
+          eq(dailySummaries.date, '2024-02-11')
+        )
+      );
     expect(summaries).toHaveLength(0);
 
     // Complete once (partial)
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-11');
     summaries = await db
       .select()
       .from(dailySummaries)
-      .where(eq(dailySummaries.date, '2024-02-11'));
+      .where(
+        and(
+          eq(dailySummaries.userId, userA),
+          eq(dailySummaries.date, '2024-02-11')
+        )
+      );
     expect(summaries).toHaveLength(1);
     expect(summaries[0].completedGoals).toBe(0);
     expect(summaries[0].totalGoals).toBe(1);
     expect(summaries[0].successRate).toBe(0);
 
     // Complete twice (full)
-    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-11');
     summaries = await db
       .select()
       .from(dailySummaries)
-      .where(eq(dailySummaries.date, '2024-02-11'));
+      .where(
+        and(
+          eq(dailySummaries.userId, userA),
+          eq(dailySummaries.date, '2024-02-11')
+        )
+      );
     expect(summaries).toHaveLength(1);
     expect(summaries[0].completedGoals).toBe(1);
     expect(summaries[0].totalGoals).toBe(1);
     expect(summaries[0].successRate).toBe(1);
 
+    teardown();
+  });
+
+  it('isolates data between users', async () => {
+    await setup();
+    const goalA = await createGoal(env, userA, {
+      title: 'User A Goal',
+      dailyTargetCount: 1,
+    });
+    const goalB = await createGoal(env, userB, {
+      title: 'User B Goal',
+      dailyTargetCount: 1,
+    });
+
+    await recordGoalCompletion(env, userA, goalA.id, 1, '2024-02-11');
+    await recordGoalCompletion(env, userB, goalB.id, 1, '2024-02-11');
+
+    const aDashboard = await getDashboardData(env, userA, 3, {
+      offsetMinutes: 0,
+    });
+    const bDashboard = await getDashboardData(env, userB, 3, {
+      offsetMinutes: 0,
+    });
+
+    expect(aDashboard.map((g) => g.id)).toEqual([goalA.id]);
+    expect(bDashboard.map((g) => g.id)).toEqual([goalB.id]);
+
+    await expect(updateGoalTarget(env, userB, goalA.id, 2)).rejects.toThrow(
+      'goal_not_found'
+    );
+    await expect(deleteGoal(env, userB, goalA.id)).resolves.toBeUndefined();
     teardown();
   });
 });

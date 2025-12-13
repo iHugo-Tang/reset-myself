@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { recordGoalCompletion } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings, toDateKey } from '@/utils/time';
+import { requireUserIdFromRequest } from '@/lib/auth/user';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
@@ -58,12 +59,18 @@ export async function POST(
   }
 
   try {
-    await recordGoalCompletion(getEnv(), goalId, count, targetDate, {
+    const userId = await requireUserIdFromRequest(request);
+    await recordGoalCompletion(getEnv(), userId, goalId, count, targetDate, {
       offsetMinutes: time.offsetMinutes,
     });
     return wantsJson ? jsonResponse({ ok: true }) : redirect('');
   } catch (error) {
     console.error('POST /api/goals/[id]/completion error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return wantsJson
+        ? jsonResponse({ ok: false, error: 'unauthorized' }, 401)
+        : NextResponse.redirect(new URL('/login', request.url));
+    }
     return wantsJson
       ? jsonResponse({ ok: false, error: 'record_completion_failed' }, 500)
       : redirect('?error=record_completion_failed');

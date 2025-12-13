@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { deleteTimelineNote } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { requireUserIdFromRequest } from '@/lib/auth/user';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
@@ -20,10 +21,17 @@ const handleDelete = async (
   }
 
   try {
-    await deleteTimelineNote(getEnv(), noteId);
+    const userId = await requireUserIdFromRequest(request);
+    await deleteTimelineNote(getEnv(), userId, noteId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE /api/timeline/notes/[id] error', error);
+    if (error instanceof Error && error.message === 'unauthorized') {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: 'Delete failed. Please try again soon.' },
       { status: 500 }

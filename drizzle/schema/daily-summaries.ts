@@ -11,6 +11,7 @@ export const dailySummaries = sqliteTable(
   'daily_summaries',
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: text('user_id').notNull(),
     date: text('date').notNull(), // YYYY-MM-DD (UTC)
     totalGoals: integer('total_goals').notNull(),
     completedGoals: integer('completed_goals').notNull(),
@@ -20,7 +21,10 @@ export const dailySummaries = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
-    dateUnique: uniqueIndex('daily_summaries_date_unique').on(table.date),
+    userDateUnique: uniqueIndex('daily_summaries_user_date_unique').on(
+      table.userId,
+      table.date
+    ),
   })
 );
 

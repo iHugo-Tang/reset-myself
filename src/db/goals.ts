@@ -107,8 +107,10 @@ export type TimelineData = {
 };
 
 type TimeContext = { offsetMinutes?: number };
+type UserId = string;
 
 type LogEventInput = {
+  userId: UserId;
   date: string;
   type: TimelineEventType;
   goalId?: number | null;
@@ -119,6 +121,7 @@ type LogEventInput = {
 const logTimelineEvent = async (env: EnvWithD1, input: LogEventInput) => {
   const db = getDb(env);
   await db.insert(timelineEvents).values({
+    userId: input.userId,
     date: input.date,
     type: input.type,
     goalId: input.goalId ?? null,
@@ -129,6 +132,7 @@ const logTimelineEvent = async (env: EnvWithD1, input: LogEventInput) => {
 
 const checkAndLogSummaryEvent = async (
   env: EnvWithD1,
+  userId: UserId,
   dateKey: string,
   _ctx?: TimeContext
 ) => {
@@ -139,6 +143,7 @@ const checkAndLogSummaryEvent = async (
   const goalsList = await db
     .select()
     .from(goals)
+    .where(eq(goals.userId, userId))
     .orderBy(desc(goals.createdAt));
   const activeGoals = goalsList.filter((g) => {
     const createdKey = toDateKey(g.createdAt, offsetMinutes);
@@ -153,6 +158,7 @@ const checkAndLogSummaryEvent = async (
     .from(goalCompletions)
     .where(
       and(
+        eq(goalCompletions.userId, userId),
         eq(goalCompletions.date, dateKey),
         inArray(
           goalCompletions.goalId,
@@ -175,7 +181,7 @@ const checkAndLogSummaryEvent = async (
   const totalGoals = activeGoals.length;
   const successRate = totalGoals > 0 ? completedGoalsCount / totalGoals : 0;
 
-  await upsertDailySummaries(env, [
+  await upsertDailySummaries(env, userId, [
     {
       date: dateKey,
       totalGoals,
@@ -206,6 +212,7 @@ const checkAndLogSummaryEvent = async (
       .delete(timelineEvents)
       .where(
         and(
+          eq(timelineEvents.userId, userId),
           eq(timelineEvents.date, dateKey),
           eq(timelineEvents.type, 'summary')
         )
@@ -218,10 +225,15 @@ const checkAndLogSummaryEvent = async (
   await db
     .delete(timelineEvents)
     .where(
-      and(eq(timelineEvents.date, dateKey), eq(timelineEvents.type, 'summary'))
+      and(
+        eq(timelineEvents.userId, userId),
+        eq(timelineEvents.date, dateKey),
+        eq(timelineEvents.type, 'summary')
+      )
     );
 
   await logTimelineEvent(env, {
+    userId,
     date: dateKey,
     type: 'summary',
     payload: {
@@ -355,6 +367,7 @@ const computeDailySummary = (
 
 const upsertDailySummaries = async (
   env: EnvWithD1,
+  userId: UserId,
   summaries: DailySummaryData[]
 ) => {
   if (!summaries.length) return;
@@ -363,6 +376,7 @@ const upsertDailySummaries = async (
     .insert(dailySummaries)
     .values(
       summaries.map((summary) => ({
+        userId,
         date: summary.date,
         totalGoals: summary.totalGoals,
         completedGoals: summary.completedGoals,
@@ -370,7 +384,7 @@ const upsertDailySummaries = async (
       }))
     )
     .onConflictDoUpdate({
-      target: dailySummaries.date,
+      target: [dailySummaries.userId, dailySummaries.date],
       set: {
         totalGoals: sql`excluded.total_goals`,
         completedGoals: sql`excluded.completed_goals`,
@@ -550,12 +564,17 @@ const processTimelineRows = (
 
 export const getTimelineData = async (
   env: EnvWithD1,
+  userId: UserId,
   days = 91,
   _ctx?: TimeContext
 ): Promise<TimelineData> => {
   const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
-  const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalRows = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId))
+    .orderBy(desc(goals.createdAt));
   const goalIds = goalRows.map((g) => g.id);
   const goalMetaMap = new Map(
     goalRows.map((goal) => [
@@ -578,7 +597,12 @@ export const getTimelineData = async (
     ? await db
         .select()
         .from(goalCompletions)
-        .where(inArray(goalCompletions.goalId, goalIds))
+        .where(
+          and(
+            eq(goalCompletions.userId, userId),
+            inArray(goalCompletions.goalId, goalIds)
+          )
+        )
         .orderBy(goalCompletions.date)
     : [];
 
@@ -603,14 +627,19 @@ export const getTimelineData = async (
     .map((date) => computeDailySummary(date, goalRows, byDate, offsetMinutes))
     .filter((s): s is DailySummaryData => Boolean(s));
 
-  await upsertDailySummaries(env, computedSummaries);
+  await upsertDailySummaries(env, userId, computedSummaries);
 
   const storedSummaries =
     pastDates.length > 0
       ? await db
           .select()
           .from(dailySummaries)
-          .where(inArray(dailySummaries.date, pastDates))
+          .where(
+            and(
+              eq(dailySummaries.userId, userId),
+              inArray(dailySummaries.date, pastDates)
+            )
+          )
       : [];
 
   const summaryData: DailySummaryData[] = storedSummaries.map((row) => ({
@@ -628,7 +657,12 @@ export const getTimelineData = async (
       : await db
           .select()
           .from(timelineEvents)
-          .where(inArray(timelineEvents.date, dates))
+          .where(
+            and(
+              eq(timelineEvents.userId, userId),
+              inArray(timelineEvents.date, dates)
+            )
+          )
           .orderBy(
             desc(timelineEvents.date),
             desc(timelineEvents.createdAt),
@@ -810,6 +844,7 @@ export const getTimelineData = async (
 
 export const backfillDailySummaries = async (
   env: EnvWithD1,
+  userId: UserId,
   _ctx?: TimeContext
 ) => {
   const offsetMinutes = _ctx?.offsetMinutes ?? 0;
@@ -818,6 +853,7 @@ export const backfillDailySummaries = async (
   const earliestGoal = await db
     .select()
     .from(goals)
+    .where(eq(goals.userId, userId))
     .orderBy(goals.createdAt)
     .limit(1);
   if (!earliestGoal.length) return { upserted: 0 };
@@ -830,7 +866,11 @@ export const backfillDailySummaries = async (
 
   if (!firstGoalKey || firstGoalKey > yesterdayKey) return { upserted: 0 };
 
-  const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalRows = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId))
+    .orderBy(desc(goals.createdAt));
   const goalIds = goalRows.map((g) => g.id);
 
   const completions =
@@ -838,7 +878,12 @@ export const backfillDailySummaries = async (
       ? await db
           .select()
           .from(goalCompletions)
-          .where(inArray(goalCompletions.goalId, goalIds))
+          .where(
+            and(
+              eq(goalCompletions.userId, userId),
+              inArray(goalCompletions.goalId, goalIds)
+            )
+          )
           .orderBy(goalCompletions.date)
       : [];
 
@@ -857,19 +902,24 @@ export const backfillDailySummaries = async (
     .map((date) => computeDailySummary(date, goalRows, byDate, offsetMinutes))
     .filter((s): s is DailySummaryData => Boolean(s));
 
-  await upsertDailySummaries(env, summaries);
+  await upsertDailySummaries(env, userId, summaries);
 
   return { upserted: summaries.length };
 };
 
 export const getDashboardData = async (
   env: EnvWithD1,
+  userId: UserId,
   days = 90,
   _ctx?: TimeContext
 ): Promise<GoalWithStats[]> => {
   const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
-  const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalRows = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId))
+    .orderBy(desc(goals.createdAt));
 
   if (!goalRows.length) return [];
 
@@ -877,7 +927,12 @@ export const getDashboardData = async (
   const allCompletions = await db
     .select()
     .from(goalCompletions)
-    .where(inArray(goalCompletions.goalId, goalIds))
+    .where(
+      and(
+        eq(goalCompletions.userId, userId),
+        inArray(goalCompletions.goalId, goalIds)
+      )
+    )
     .orderBy(goalCompletions.date);
 
   const byGoal = new Map<number, GoalCompletion[]>();
@@ -905,6 +960,7 @@ export const getDashboardData = async (
 
 export const createGoal = async (
   env: EnvWithD1,
+  userId: UserId,
   payload: {
     title: string;
     description?: string;
@@ -919,6 +975,7 @@ export const createGoal = async (
   const [inserted] = await db
     .insert(goals)
     .values({
+      userId,
       title: payload.title,
       description: payload.description ?? '',
       dailyTargetCount: payload.dailyTargetCount,
@@ -931,6 +988,7 @@ export const createGoal = async (
 
   const dateKey = toDateKey(Date.now(), offsetMinutes);
   await logTimelineEvent(env, {
+    userId,
     date: dateKey,
     type: 'goal_created',
     goalId: inserted.id,
@@ -948,21 +1006,27 @@ export const createGoal = async (
 
 export const updateGoalTarget = async (
   env: EnvWithD1,
+  userId: UserId,
   goalId: number,
   dailyTargetCount: number
 ) => {
   const db = getDb(env);
+  const [existing] = await db
+    .select({ id: goals.id })
+    .from(goals)
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
+    .limit(1);
+  if (!existing) throw new Error('goal_not_found');
+
   await db
     .update(goals)
-    .set({
-      dailyTargetCount,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(goals.id, goalId));
+    .set({ dailyTargetCount, updatedAt: new Date().toISOString() })
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
 };
 
 export const updateGoal = async (
   env: EnvWithD1,
+  userId: UserId,
   goalId: number,
   payload: {
     title?: string;
@@ -973,6 +1037,12 @@ export const updateGoal = async (
   }
 ) => {
   const db = getDb(env);
+  const [existing] = await db
+    .select({ id: goals.id })
+    .from(goals)
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
+    .limit(1);
+  if (!existing) throw new Error('goal_not_found');
 
   const updates: Partial<typeof goals.$inferInsert> = {
     updatedAt: new Date().toISOString(),
@@ -1003,11 +1073,15 @@ export const updateGoal = async (
     updates.color = payload.color.trim() || '#10b981';
   }
 
-  await db.update(goals).set(updates).where(eq(goals.id, goalId));
+  await db
+    .update(goals)
+    .set(updates)
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
 };
 
 export const recordGoalCompletion = async (
   env: EnvWithD1,
+  userId: UserId,
   goalId: number,
   count: number,
   date?: string,
@@ -1020,7 +1094,7 @@ export const recordGoalCompletion = async (
   const [goal] = await db
     .select()
     .from(goals)
-    .where(eq(goals.id, goalId))
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
     .limit(1);
   if (!goal) throw new Error('goal_not_found');
   const [existing] = await db
@@ -1028,6 +1102,7 @@ export const recordGoalCompletion = async (
     .from(goalCompletions)
     .where(
       and(
+        eq(goalCompletions.userId, userId),
         eq(goalCompletions.goalId, goalId),
         eq(goalCompletions.date, targetDate)
       )
@@ -1040,12 +1115,14 @@ export const recordGoalCompletion = async (
       .set({ count: existing.count + count })
       .where(
         and(
+          eq(goalCompletions.userId, userId),
           eq(goalCompletions.goalId, goalId),
           eq(goalCompletions.date, targetDate)
         )
       );
   } else {
     await db.insert(goalCompletions).values({
+      userId,
       goalId,
       date: targetDate,
       count,
@@ -1059,6 +1136,7 @@ export const recordGoalCompletion = async (
     .delete(timelineEvents)
     .where(
       and(
+        eq(timelineEvents.userId, userId),
         eq(timelineEvents.date, targetDate),
         eq(timelineEvents.type, 'checkin'),
         eq(timelineEvents.goalId, goalId)
@@ -1066,6 +1144,7 @@ export const recordGoalCompletion = async (
     );
 
   await logTimelineEvent(env, {
+    userId,
     date: targetDate,
     type: 'checkin',
     goalId,
@@ -1080,11 +1159,12 @@ export const recordGoalCompletion = async (
     },
   });
 
-  await checkAndLogSummaryEvent(env, targetDate, _ctx);
+  await checkAndLogSummaryEvent(env, userId, targetDate, _ctx);
 };
 
 export const createTimelineNote = async (
   env: EnvWithD1,
+  userId: UserId,
   content: string,
   date?: string,
   _ctx?: TimeContext
@@ -1098,6 +1178,7 @@ export const createTimelineNote = async (
   const [inserted] = await db
     .insert(timelineNotes)
     .values({
+      userId,
       content: trimmed,
       date: targetDate,
       createdAt: new Date(Date.now()).toISOString(),
@@ -1105,6 +1186,7 @@ export const createTimelineNote = async (
     .returning();
 
   await logTimelineEvent(env, {
+    userId,
     date: targetDate,
     type: 'note',
     payload: { noteId: inserted.id, content: trimmed },
@@ -1114,14 +1196,21 @@ export const createTimelineNote = async (
   return inserted;
 };
 
-export const deleteTimelineNote = async (env: EnvWithD1, noteId: number) => {
+export const deleteTimelineNote = async (
+  env: EnvWithD1,
+  userId: UserId,
+  noteId: number
+) => {
   const db = getDb(env);
   if (!noteId) throw new Error('note_id_required');
-  await db.delete(timelineNotes).where(eq(timelineNotes.id, noteId));
+  await db
+    .delete(timelineNotes)
+    .where(and(eq(timelineNotes.id, noteId), eq(timelineNotes.userId, userId)));
   await db
     .delete(timelineEvents)
     .where(
       and(
+        eq(timelineEvents.userId, userId),
         eq(timelineEvents.type, 'note'),
         eq(sql`json_extract(${timelineEvents.payload}, '$.noteId')`, noteId)
       )
@@ -1130,6 +1219,7 @@ export const deleteTimelineNote = async (env: EnvWithD1, noteId: number) => {
 
 export const deleteGoal = async (
   env: EnvWithD1,
+  userId: UserId,
   goalId: number,
   _ctx?: TimeContext
 ) => {
@@ -1138,12 +1228,13 @@ export const deleteGoal = async (
   const [goal] = await db
     .select()
     .from(goals)
-    .where(eq(goals.id, goalId))
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
     .limit(1);
 
   if (goal) {
     const dateKey = toDateKey(Date.now(), offsetMinutes);
     await logTimelineEvent(env, {
+      userId,
       date: dateKey,
       type: 'goal_deleted',
       goalId,
@@ -1156,17 +1247,23 @@ export const deleteGoal = async (
     });
   }
 
-  await db.delete(goals).where(eq(goals.id, goalId));
+  await db
+    .delete(goals)
+    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)));
 };
 
 export const getTimelineEventsInfinite = async (
   env: EnvWithD1,
+  userId: UserId,
   limit = 20,
   cursor?: string
 ) => {
   const db = getDb(env);
 
-  const goalRows = await db.select().from(goals);
+  const goalRows = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId));
   const goalMetaMap = new Map(
     goalRows.map((goal) => [
       goal.id,
@@ -1179,17 +1276,10 @@ export const getTimelineEventsInfinite = async (
     ])
   );
 
-  const baseQuery = db
-    .select()
-    .from(timelineEvents)
-    .orderBy(
-      desc(timelineEvents.date),
-      desc(timelineEvents.createdAt),
-      desc(timelineEvents.id)
-    )
-    .limit(limit + 1);
-
-  let cursorCondition: Parameters<(typeof baseQuery)['where']>[0] | undefined;
+  const whereTypeProbe = db.select().from(timelineEvents);
+  let cursorCondition:
+    | Parameters<(typeof whereTypeProbe)['where']>[0]
+    | undefined;
   if (cursor) {
     try {
       const [cDate, cCreatedAt, cIdStr] = Buffer.from(cursor, 'base64')
@@ -1216,7 +1306,17 @@ export const getTimelineEventsInfinite = async (
     }
   }
 
-  const query = cursorCondition ? baseQuery.where(cursorCondition) : baseQuery;
+  const baseWhere = eq(timelineEvents.userId, userId);
+  const query = db
+    .select()
+    .from(timelineEvents)
+    .where(cursorCondition ? and(baseWhere, cursorCondition) : baseWhere)
+    .orderBy(
+      desc(timelineEvents.date),
+      desc(timelineEvents.createdAt),
+      desc(timelineEvents.id)
+    )
+    .limit(limit + 1);
   const rows = await query;
   const hasMore = rows.length > limit;
   const slicedRows = hasMore ? rows.slice(0, limit) : rows;
@@ -1236,19 +1336,29 @@ export const getTimelineEventsInfinite = async (
 
 export const getTimelineStats = async (
   env: EnvWithD1,
+  userId: UserId,
   days = 91,
   _ctx?: TimeContext
 ) => {
   const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
-  const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalRows = await db
+    .select()
+    .from(goals)
+    .where(eq(goals.userId, userId))
+    .orderBy(desc(goals.createdAt));
   const goalIds = goalRows.map((g) => g.id);
 
   const completions = goalIds.length
     ? await db
         .select()
         .from(goalCompletions)
-        .where(inArray(goalCompletions.goalId, goalIds))
+        .where(
+          and(
+            eq(goalCompletions.userId, userId),
+            inArray(goalCompletions.goalId, goalIds)
+          )
+        )
         .orderBy(goalCompletions.date)
     : [];
 
@@ -1265,6 +1375,7 @@ export const getTimelineStats = async (
   const summaryDataRaw = await db
     .select()
     .from(dailySummaries)
+    .where(eq(dailySummaries.userId, userId))
     .orderBy(desc(dailySummaries.date))
     .limit(days);
 
@@ -1303,7 +1414,11 @@ export const getTimelineStats = async (
   return { streak, heatmap };
 };
 
-export const getTodayStatus = async (env: EnvWithD1, _ctx?: TimeContext) => {
+export const getTodayStatus = async (
+  env: EnvWithD1,
+  userId: UserId,
+  _ctx?: TimeContext
+) => {
   const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const todayKey = toDateKey(
@@ -1314,6 +1429,7 @@ export const getTodayStatus = async (env: EnvWithD1, _ctx?: TimeContext) => {
   const goalsList = await db
     .select()
     .from(goals)
+    .where(eq(goals.userId, userId))
     .orderBy(desc(goals.createdAt));
   const activeGoals = goalsList.filter((g) => {
     const createdKey = toDateKey(g.createdAt, offsetMinutes);
@@ -1327,6 +1443,7 @@ export const getTodayStatus = async (env: EnvWithD1, _ctx?: TimeContext) => {
     .from(goalCompletions)
     .where(
       and(
+        eq(goalCompletions.userId, userId),
         eq(goalCompletions.date, todayKey),
         inArray(
           goalCompletions.goalId,
