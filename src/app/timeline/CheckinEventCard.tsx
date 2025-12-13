@@ -1,14 +1,10 @@
 import { TimelineCheckinEvent } from '@/db/goals';
-import { formatTimeInTimeZone } from '@/utils/time';
+import { formatEventTime } from '@/utils/time';
 import {
   DEFAULT_COLOR,
   DEFAULT_ICON,
   ICON_MAP,
 } from '@/app/admin/dashboard/iconOptions';
-
-function formatTimeLabel(iso: string, timeZone: string) {
-  return formatTimeInTimeZone(iso, timeZone, 'en-US');
-}
 
 export function CheckinEventCard({
   event,
@@ -17,7 +13,7 @@ export function CheckinEventCard({
   event: TimelineCheckinEvent;
   timeZone: string;
 }) {
-  const timeLabel = formatTimeLabel(event.createdAt, timeZone);
+  const timeLabel = formatEventTime(event.createdAt, timeZone);
   const completionPercent = Math.min(
     100,
     Math.round(Math.min(1, event.newCount / Math.max(1, event.target)) * 100)
@@ -29,35 +25,35 @@ export function CheckinEventCard({
 
   return (
     <div className="rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 text-sm font-semibold text-slate-100"
-            style={{
-              backgroundColor: `${color}22`,
-              color,
-              borderColor: `${color}55`,
-            }}
-          >
-            {Icon ? (
-              <Icon className="h-4 w-4" />
-            ) : (
-              (event.goalTitle.trim()[0] ?? '?')
-            )}
-          </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-base font-semibold text-slate-50">
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-800 text-sm font-semibold text-slate-100 flex-shrink-0"
+          style={{
+            backgroundColor: `${color}22`,
+            color,
+            borderColor: `${color}55`,
+          }}
+        >
+          {Icon ? (
+            <Icon className="h-4 w-4" />
+          ) : (
+            (event.goalTitle.trim()[0] ?? '?')
+          )}
+        </div>
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <p className="text-base font-semibold text-slate-50 truncate">
               {event.goalTitle}
             </p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-              <span className="text-emerald-200">{deltaLabel}</span>
-              <span className="text-slate-500">
-                New total: {event.newCount}
-              </span>
-            </div>
+            <span className="text-xs text-slate-500 whitespace-nowrap">{timeLabel}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+            <span className="text-emerald-200">{deltaLabel}</span>
+            <span className="text-slate-500">
+              New total: {event.newCount}
+            </span>
           </div>
         </div>
-        <span className="text-sm text-slate-500">{timeLabel}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
