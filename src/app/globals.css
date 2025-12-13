@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@layer components {
+  .panel-card {
+    @apply rounded-3xl border border-slate-900/70 bg-linear-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] shadow-[0_18px_80px_rgba(0,0,0,0.45)];
+  }
+}

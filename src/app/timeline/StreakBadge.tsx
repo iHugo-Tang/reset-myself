@@ -2,16 +2,24 @@ import { Flame } from 'lucide-react';
 
 export function StreakBadge({ streak }: { streak: number }) {
   const isActive = streak > 0;
-  const containerClass = isActive
-    ? 'border-amber-500/40 bg-[#1e1a11] text-amber-100'
-    : 'border-slate-800 bg-[#11161c] text-slate-200';
+  // Use panel-card for background/border base, but allow overrides for text color
+  // active state might still want a specific border color to highlight?
+  // User asked for "same background", but didn't say lose the streak highlight.
+  // I will keep the text color difference. I will try to use the unified background.
+  // If active, maybe I'll keep the amber border if it looks good, or just stick to the unified style.
+  // Given "unify in one place", I'll stick to the unified card style for the box itself mostly.
+  // But the active state distinctiveness is important.
+
+  const textClass = isActive ? 'text-amber-100' : 'text-slate-200';
+  const borderClass = isActive ? 'border-amber-500/40' : ''; // Optional: override border if active?
+
   const circleClass = isActive
     ? 'text-amber-200 ring-amber-500/30 bg-[#2a2110]'
     : 'text-slate-400 ring-slate-800 bg-[#0b1017]';
 
   return (
     <div
-      className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.35)] ${containerClass}`}
+      className={`panel-card flex w-full items-center gap-4 px-4 py-3 ${textClass} ${borderClass}`}
       aria-live="polite"
       title={isActive ? `On a ${streak}-day streak` : 'Streak not started yet'}
     >
@@ -37,4 +45,3 @@ export function StreakBadge({ streak }: { streak: number }) {
     </div>
   );
 }
-

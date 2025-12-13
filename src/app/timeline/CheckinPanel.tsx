@@ -24,7 +24,7 @@ export function CheckinPanel({ day, today }: Props) {
   const [dateLabel, weekdayLabel] = formatDateLabel(day.date).split(' · ');
 
   return (
-    <section className="rounded-3xl border border-slate-900/70 bg-linear-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-5 shadow-[0_18px_80px_rgba(0,0,0,0.45)]">
+    <section className="panel-card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="text-sm font-semibold tracking-[0.2em] text-slate-500/80 uppercase">
