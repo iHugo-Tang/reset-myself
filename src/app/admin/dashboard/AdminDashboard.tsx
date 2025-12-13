@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Plus, Target, LayoutGrid } from 'lucide-react';
+import { Plus, Target, LayoutGrid, Menu, X } from 'lucide-react';
 import type { GoalWithStats } from '@/db/goals';
 import { GoalForm } from './GoalForm';
 import { GoalActionsMenu } from './GoalActionsMenu';
@@ -18,6 +18,7 @@ type Props = {
 export function AdminDashboard({ goals }: Props) {
   const [view, setView] = useState<ViewState>('list');
   const [selectedGoal, setSelectedGoal] = useState<GoalWithStats | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const handleCreate = () => {
     setSelectedGoal(null);
@@ -41,6 +42,75 @@ export function AdminDashboard({ goals }: Props) {
 
   return (
     <div className="min-h-screen bg-[#0f1419] text-slate-100">
+      <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#0c121a]/95 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-slate-800 bg-[#0b1017]">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={56}
+                height={56}
+                className="h-full w-full object-cover"
+                priority
+              />
+            </div>
+            <span className="font-semibold text-slate-100">RESET MYSELF</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileNavOpen(true)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#0b1017] text-slate-300 transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
+      </header>
+
+      {isMobileNavOpen ? (
+        <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Close menu"
+            onClick={() => setIsMobileNavOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 w-72 border-r border-slate-800 bg-[#0c121a]">
+            <div className="flex h-16 items-center justify-between px-4">
+              <span className="text-sm font-semibold text-slate-200">Menu</span>
+              <button
+                type="button"
+                onClick={() => setIsMobileNavOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-[#0b1017] text-slate-300 transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="space-y-1 px-3 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setView('list');
+                  setIsMobileNavOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+                ${view === 'list'
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+              >
+                <LayoutGrid className="h-5 w-5" />
+                Goals
+              </button>
+            </nav>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto flex max-w-7xl">
         {/* Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-slate-800 bg-[#0c121a] lg:flex">
@@ -126,23 +196,26 @@ export function AdminDashboard({ goals }: Props) {
                         </p>
                       </div>
 
-                      <div className="hidden shrink-0 items-center gap-6 text-sm text-slate-400 sm:flex">
-                        <div className="flex flex-col items-end">
-                          <span className="font-medium text-slate-200">{goal.streak}</span>
-                          <span className="text-xs text-slate-500">Streak</span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="font-medium text-slate-200">{goal.totalCompletedDays}</span>
-                          <span className="text-xs text-slate-500">Total Days</span>
-                        </div>
-                        <div
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <GoalActionsMenu
-                            goal={goal}
-                            onEdit={handleEdit}
-                            onRetroactiveCheckIn={handleRetroactiveCheckIn}
-                          />
+                      <div className="shrink-0">
+                        <div className="flex items-center gap-3 text-sm text-slate-400">
+                          <div className="hidden items-center gap-6 sm:flex">
+                            <div className="flex flex-col items-end">
+                              <span className="font-medium text-slate-200">{goal.streak}</span>
+                              <span className="text-xs text-slate-500">Streak</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="font-medium text-slate-200">{goal.totalCompletedDays}</span>
+                              <span className="text-xs text-slate-500">Total Days</span>
+                            </div>
+                          </div>
+
+                          <div onClick={(event) => event.stopPropagation()}>
+                            <GoalActionsMenu
+                              goal={goal}
+                              onEdit={handleEdit}
+                              onRetroactiveCheckIn={handleRetroactiveCheckIn}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
