@@ -9,6 +9,7 @@ import {
   deleteTimelineNote,
   getDashboardData,
   getTimelineData,
+  getTimelineEventsInfinite,
   recordGoalCompletion,
   updateGoal,
   updateGoalTarget,
@@ -455,6 +456,50 @@ describe('db/goals', () => {
         )
       );
     expect(events).toHaveLength(0);
+
+    teardown();
+  });
+
+  it('supports infinite scrolling with cursors', async () => {
+    const db = await setup();
+    // Create events to span multiple pages
+    // 1. Goal Created
+    const goal = await createGoal(env, {
+      title: 'Scroll Goal',
+      dailyTargetCount: 1,
+    });
+    // 2. Note
+    await createTimelineNote(env, 'Note 1', '2024-02-11');
+    // 3. Checkin
+    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+
+    // Fetch page 1 (limit 2) - should return Summary (if generated) and Checkin
+    const page1 = await getTimelineEventsInfinite(env, 2);
+    expect(page1.events).toHaveLength(2);
+    expect(page1.nextCursor).toBeTruthy();
+
+    // Fetch page 2 (limit 2) - should return Note and Goal Created
+    const page2 = await getTimelineEventsInfinite(env, 2, page1.nextCursor!);
+    expect(page2.events).toHaveLength(2);
+    expect(page2.nextCursor).toBeNull();
+
+    // Check types
+    expect(page2.events[0].type).toBe('note');
+    expect(page2.events[1].type).toBe('goal_created');
+
+    // Ensure no overlap
+    const page1Ids = page1.events.map((e) => e.id);
+    const page2Ids = page2.events.map((e) => e.id);
+    expect(page1Ids.some((id) => page2Ids.includes(id))).toBe(false);
+
+    // Test invalid cursor (graceful fallback to first page)
+    const invalidPage = await getTimelineEventsInfinite(
+      env,
+      2,
+      'invalid-cursor'
+    );
+    expect(invalidPage.events).toHaveLength(2);
+    expect(invalidPage.events[0].id).toBe(page1.events[0].id);
 
     teardown();
   });
