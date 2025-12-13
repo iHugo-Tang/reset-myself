@@ -114,7 +114,11 @@ class SqlJsD1Database implements D1Database {
   }
 
   async dump(): Promise<ArrayBuffer> {
-    return this.db.export().buffer;
+    const buffer = this.db.export().buffer;
+    if (buffer instanceof ArrayBuffer) return buffer;
+    const copy = new ArrayBuffer(buffer.byteLength);
+    new Uint8Array(copy).set(new Uint8Array(buffer));
+    return copy;
   }
 
   async exec(query: string): Promise<D1ExecResult> {

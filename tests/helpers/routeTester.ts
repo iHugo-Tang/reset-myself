@@ -69,14 +69,16 @@ class RequestBuilder<P extends Record<string, string> = Record<string, string>> 
       this.headers.set('content-type', 'application/json');
     }
 
-    const init: RequestInit = {
+    type NextRequestInit = ConstructorParameters<typeof NextRequest>[1];
+    const body = this.buildBody();
+    const init: NextRequestInit = {
       method: this.method,
       headers: Object.fromEntries(this.headers.entries()),
-      body: this.buildBody(),
+      ...(body !== undefined ? { body } : {}),
     };
     const request = new NextRequest(
       `http://localhost${this.url}`,
-      init as unknown as RequestInit
+      init
     );
 
     const ctx = { params: Promise.resolve(this.params ?? ({} as P)) };
