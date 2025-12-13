@@ -22,4 +22,14 @@ describe('Admin dashboard mobile UI (regression)', () => {
     expect(file).toContain('aria-label="Open menu"');
     expect(file).toContain('lg:hidden');
   });
+
+  it('navigates to home when clicking the brand', async () => {
+    const file = await readFile(
+      'src/app/admin/dashboard/AdminDashboard.tsx',
+      'utf8'
+    );
+
+    expect(file).toContain('href="/"');
+    expect(file).toContain('aria-label="Go to home"');
+  });
 });

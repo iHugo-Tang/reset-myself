@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Plus, Target, LayoutGrid, Menu, X } from 'lucide-react';
 import type { GoalWithStats } from '@/db/goals';
 import { GoalForm } from './GoalForm';
@@ -44,7 +45,12 @@ export function AdminDashboard({ goals }: Props) {
     <div className="min-h-screen bg-[#0f1419] text-slate-100">
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-[#0c121a]/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            aria-label="Go to home"
+            className="flex items-center gap-3"
+            onClick={() => setIsMobileNavOpen(false)}
+          >
             <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-slate-800 bg-[#0b1017]">
               <Image
                 src="/logo.png"
@@ -56,7 +62,7 @@ export function AdminDashboard({ goals }: Props) {
               />
             </div>
             <span className="font-semibold text-slate-100">RESET MYSELF</span>
-          </div>
+          </Link>
 
           <button
             type="button"
@@ -114,7 +120,7 @@ export function AdminDashboard({ goals }: Props) {
       <div className="mx-auto flex max-w-7xl">
         {/* Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-slate-800 bg-[#0c121a] lg:flex">
-          <div className="flex h-20 items-center gap-3 px-6">
+          <Link href="/" aria-label="Go to home" className="flex h-20 items-center gap-3 px-6">
             <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-slate-800 bg-[#0b1017]">
               <Image
                 src="/logo.png"
@@ -126,7 +132,7 @@ export function AdminDashboard({ goals }: Props) {
               />
             </div>
             <span className="font-semibold text-slate-100">RESET MYSELF</span>
-          </div>
+          </Link>
 
           <nav className="flex-1 space-y-1 px-3 py-4">
             <button
