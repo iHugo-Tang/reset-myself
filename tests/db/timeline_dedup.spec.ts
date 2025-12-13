@@ -92,6 +92,60 @@ describe('db/timeline_dedup', () => {
     teardown();
   });
 
+  it('preserves checkins on different dates', async () => {
+    const db = await setup();
+    const goal = await createGoal(env, {
+      title: 'Different Dates',
+      dailyTargetCount: 5,
+    });
+    const today = toDateKey(Date.now(), 0);
+    const yesterday = toDateKey(Date.now() - 24 * 60 * 60 * 1000, 0);
+
+    // Insert checkin for today
+    await db.insert(timelineEvents).values({
+      date: today,
+      type: 'checkin',
+      goalId: goal.id,
+      payload: { goalId: goal.id, delta: 1, newCount: 1 },
+      createdAt: '2024-02-11T12:00:00Z',
+    });
+
+    // Insert checkin for yesterday
+    await db.insert(timelineEvents).values({
+      date: yesterday,
+      type: 'checkin',
+      goalId: goal.id,
+      payload: { goalId: goal.id, delta: 1, newCount: 1 },
+      createdAt: '2024-02-10T12:00:00Z',
+    });
+
+    // Verify READ logic returns both
+    const result = await getTimelineEventsInfinite(env, 10);
+    const checkinEvents = result.events.filter((e) => e.type === 'checkin');
+
+    expect(checkinEvents).toHaveLength(2);
+    // TimelineEvent doesn't have 'date' property, but we can verify by createdAt which we set
+    const createdAts = checkinEvents.map((e) => e.createdAt).sort();
+    expect(createdAts).toEqual(
+      ['2024-02-10T12:00:00Z', '2024-02-11T12:00:00Z'].sort()
+    );
+
+    // Verify WRITE logic on today doesn't delete yesterday
+    await recordGoalCompletion(env, goal.id, 1, today);
+
+    const rawEvents = await db
+      .select()
+      .from(timelineEvents)
+      .where(eq(timelineEvents.type, 'checkin'));
+
+    // Should have 2 events: one for yesterday (preserved) and one for today (newly inserted/replaced)
+    expect(rawEvents).toHaveLength(2);
+    const rawDates = rawEvents.map((e) => e.date).sort();
+    expect(rawDates).toEqual([yesterday, today].sort());
+
+    teardown();
+  });
+
   it('cleanup script SQL works correctly', async () => {
     const db = await setup();
     const goal = await createGoal(env, {
