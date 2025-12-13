@@ -70,7 +70,7 @@ export function AdminDashboard({ goals }: Props) {
       </header>
 
       {isMobileNavOpen ? (
-        <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-60 lg:hidden" role="dialog" aria-modal="true">
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
