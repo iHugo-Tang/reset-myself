@@ -108,7 +108,6 @@ export type TimelineData = {
 
 type TimeContext = { offsetMinutes?: number };
 
-
 type LogEventInput = {
   date: string;
   type: TimelineEventType;
@@ -984,8 +983,7 @@ export const recordGoalCompletion = async (
 ) => {
   const offsetMinutes = 0;
   const db = getDb(env);
-  const targetDate =
-    (date?.trim?.() ?? '') || toDateKey(Date.now(), 0);
+  const targetDate = (date?.trim?.() ?? '') || toDateKey(Date.now(), 0);
   const [goal] = await db
     .select()
     .from(goals)

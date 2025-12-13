@@ -40,11 +40,11 @@ export default async function TimelinePage() {
 
   const [eventsData, stats, todayItems] = await Promise.all([
     getTimelineEventsInfinite(env, 20),
-    getTimelineStats(env, 370, { offsetMinutes: timeSettings.offsetMinutes }),
-    getTodayStatus(env, { offsetMinutes: timeSettings.offsetMinutes }),
+    getTimelineStats(env, 370),
+    getTodayStatus(env),
   ]);
 
-  const todayKey = toDateKey(Date.now(), timeSettings.offsetMinutes);
+  const todayKey = toDateKey(Date.now(), 0);
 
   const todayDay: TimelineDay = {
     date: todayKey,
@@ -91,10 +91,7 @@ export default async function TimelinePage() {
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
           <div className="space-y-4 lg:order-2 lg:col-span-1">
             <StreakBadge streak={stats.streak} />
-            <HeatmapCard
-              heatmap={stats.heatmap}
-              offsetMinutes={timeSettings.offsetMinutes}
-            />
+            <HeatmapCard heatmap={stats.heatmap} />
             {todayItems.length > 0 ? (
               <CheckinPanel day={todayDay} today={todayKey} />
             ) : null}

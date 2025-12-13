@@ -265,11 +265,17 @@ describe('db/goals', () => {
       createdAt: '2024-02-09T05:00:00Z',
     });
 
-    // Legacy note without corresponding event
+    // Legacy note with corresponding event (simulating backfill)
     await db.insert(timelineNotes).values({
       content: 'Legacy',
       date: '2024-02-09',
       createdAt: '2024-02-09T02:00:00Z',
+    });
+    await db.insert(timelineEvents).values({
+      date: '2024-02-09',
+      type: 'note',
+      createdAt: '2024-02-09T02:00:00Z',
+      payload: { content: 'Legacy', noteId: 999 }, // ID doesn't matter for this test
     });
 
     const timeline = await getTimelineData(env, 3, { offsetMinutes: 0 });
@@ -500,6 +506,37 @@ describe('db/goals', () => {
     );
     expect(invalidPage.events).toHaveLength(2);
     expect(invalidPage.events[0].id).toBe(page1.events[0].id);
+
+    teardown();
+  });
+
+  it('stores timestamps in ISO 8601 UTC format (ending with Z)', async () => {
+    const db = await setup();
+    const goal = await createGoal(env, {
+      title: 'UTC Check',
+      dailyTargetCount: 1,
+    });
+    const note = await createTimelineNote(env, 'UTC Note', '2024-02-11');
+
+    // Check Goal
+    const [fetchedGoal] = await db
+      .select()
+      .from(goals)
+      .where(eq(goals.id, goal.id));
+    expect(fetchedGoal.createdAt).toMatch(/Z$/);
+
+    // Check Note
+    const [fetchedNote] = await db
+      .select()
+      .from(timelineNotes)
+      .where(eq(timelineNotes.id, note.id));
+    expect(fetchedNote.createdAt).toMatch(/Z$/);
+
+    // Check Events
+    const events = await db.select().from(timelineEvents);
+    events.forEach((e) => {
+      expect(e.createdAt).toMatch(/Z$/);
+    });
 
     teardown();
   });

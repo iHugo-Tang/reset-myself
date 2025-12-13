@@ -40,10 +40,8 @@ const normalizeHeatmap = (
 
 export function HeatmapCard({
   heatmap,
-  offsetMinutes,
 }: {
   heatmap: TimelineHeatmapDay[];
-  offsetMinutes: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [numWeeks, setNumWeeks] = useState(15);
@@ -74,8 +72,8 @@ export function HeatmapCard({
   }, []);
 
   const daysToShow = numWeeks * 7;
-  const data = normalizeHeatmap(heatmap, offsetMinutes, daysToShow);
-  const todayKey = toDateKey(Date.now(), offsetMinutes);
+  const data = normalizeHeatmap(heatmap, 0, daysToShow);
+  const todayKey = toDateKey(Date.now(), 0);
   const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
 
   if (!(heatmap?.length ?? 0)) {

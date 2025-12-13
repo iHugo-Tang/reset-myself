@@ -1,46 +1,67 @@
 import { Flame } from 'lucide-react';
 
+const getStreakTier = (streak: number) => {
+  if (streak === 0) return 0;
+  if (streak < 7) return 1;
+  if (streak < 30) return 2;
+  return 3;
+};
+
 export function StreakBadge({ streak }: { streak: number }) {
-  const isActive = streak > 0;
-  // Use panel-card for background/border base, but allow overrides for text color
-  // active state might still want a specific border color to highlight?
-  // User asked for "same background", but didn't say lose the streak highlight.
-  // I will keep the text color difference. I will try to use the unified background.
-  // If active, maybe I'll keep the amber border if it looks good, or just stick to the unified style.
-  // Given "unify in one place", I'll stick to the unified card style for the box itself mostly.
-  // But the active state distinctiveness is important.
+  const tier = getStreakTier(streak);
 
-  const textClass = isActive ? 'text-amber-100' : 'text-slate-200';
-  const borderClass = isActive ? 'border-amber-500/40' : ''; // Optional: override border if active?
-
-  const circleClass = isActive
-    ? 'text-amber-200 ring-amber-500/30 bg-[#2a2110]'
-    : 'text-slate-400 ring-slate-800 bg-[#0b1017]';
+  const styles = {
+    0: {
+      wrapper: 'border-slate-800 bg-[#0b1017] text-slate-400',
+      iconBox: 'bg-slate-900 text-slate-600 ring-slate-800',
+      glow: '',
+      icon: <Flame className="h-5 w-5 opacity-50" />,
+    },
+    1: {
+      wrapper: 'border-orange-900/30 bg-[#1a120b] text-orange-200',
+      iconBox: 'bg-orange-950/50 text-orange-500 ring-orange-900/50',
+      glow: '',
+      icon: <Flame className="h-5 w-5" />,
+    },
+    2: {
+      wrapper:
+        'border-orange-500/30 bg-gradient-to-br from-[#2a1b0e] to-[#1a120b] text-orange-100',
+      iconBox:
+        'bg-orange-500/20 text-orange-400 ring-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.2)]',
+      glow: 'shadow-[0_0_15px_-3px_rgba(249,115,22,0.15)]',
+      icon: <Flame className="h-5 w-5 animate-pulse" />,
+    },
+    3: {
+      wrapper:
+        'border-amber-500/50 bg-gradient-to-br from-[#3d2610] to-[#2a1b0e] text-amber-50',
+      iconBox:
+        'bg-amber-500/20 text-amber-300 ring-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]',
+      glow: 'shadow-[0_0_25px_-5px_rgba(251,191,36,0.3)] border-amber-400/50',
+      icon: (
+        <Flame className="h-5 w-5 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+      ),
+    },
+  }[tier];
 
   return (
     <div
-      className={`panel-card flex w-full items-center gap-4 px-4 py-3 ${textClass} ${borderClass}`}
-      aria-live="polite"
-      title={isActive ? `On a ${streak}-day streak` : 'Streak not started yet'}
+      className={`relative overflow-hidden rounded-xl border p-4 transition-all duration-300 ${styles.wrapper} ${styles.glow}`}
     >
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-inner ring-1 ${circleClass}`}
-        aria-hidden
-      >
-        <Flame className={`h-5 w-5 ${isActive ? '' : 'opacity-70'}`} />
-      </div>
-      <div className="space-y-0.5">
-        <p className="text-xs font-semibold tracking-[0.18em] text-slate-400 uppercase">
-          Daily streak
-        </p>
-        <p className="text-sm font-semibold text-slate-50">
-          {isActive ? `Current streak: ${streak} days` : 'No streak yet'}
-        </p>
-        <p className="text-xs text-slate-400">
-          {isActive
-            ? 'Keep the rhythm: complete all goals to count the day'
-            : 'Finish all goals today to start your streak'}
-        </p>
+      <div className="flex items-center gap-4">
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl ring-1 transition-all duration-300 ${styles.iconBox}`}
+        >
+          {styles.icon}
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+            Daily Streak
+          </span>
+          <span className="text-lg font-bold tabular-nums leading-tight">
+            {streak}{' '}
+            <span className="text-sm font-normal opacity-80">days</span>
+          </span>
+        </div>
       </div>
     </div>
   );

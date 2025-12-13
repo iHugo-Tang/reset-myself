@@ -2,19 +2,12 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createGoal, getDashboardData } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
-import { resolveRequestTimeSettings } from '@/utils/time';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const time = resolveRequestTimeSettings({
-      cookies: req.cookies,
-      cookieHeader: req.headers.get('cookie'),
-    });
-    const data = await getDashboardData(getEnv(), 90, {
-      offsetMinutes: time.offsetMinutes,
-    });
+    const data = await getDashboardData(getEnv(), 90);
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('GET /api/goals error', error);

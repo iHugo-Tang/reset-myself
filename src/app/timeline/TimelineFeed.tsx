@@ -33,7 +33,7 @@ export default function TimelineFeed({
         if (loading || !nextCursor) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/timeline?cursor=${encodeURIComponent(nextCursor)}&tz_offset=${new Date().getTimezoneOffset()}`);
+            const res = await fetch(`/api/timeline?cursor=${encodeURIComponent(nextCursor)}`);
             if (!res.ok) throw new Error('Failed to fetch');
             const json = (await res.json()) as {
                 success: boolean;

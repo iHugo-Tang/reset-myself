@@ -184,7 +184,10 @@ export const formatTimeInTimeZone = (
   locale = 'en-US'
 ) => {
   const tz = normalizeTimeZone(timeZone);
-  const d = new Date(iso);
+  // Ensure we parse as UTC if missing timezone info, then convert to Date object
+  // Note: new Date() behavior varies, so we rely on dayjs for parsing first
+  const d = parseDbTimestamp(iso).toDate();
+
   if (Number.isNaN(d.getTime())) return iso;
   try {
     return new Intl.DateTimeFormat(locale, {
@@ -200,27 +203,37 @@ export const formatTimeInTimeZone = (
   }
 };
 
+// Helper to parse DB timestamps that might be missing timezone info (assume UTC)
+const parseDbTimestamp = (iso: string) => {
+  // If no timezone info (Z or offset), treat as UTC
+  if (!iso.endsWith('Z') && !/[+-]\d{2}:?\d{2}/.test(iso)) {
+    return dayjs.utc(iso);
+  }
+  return dayjs(iso);
+};
+
 export const formatEventTime = (iso: string, timeZone: string) => {
-  const date = dayjs(iso);
+  const date = parseDbTimestamp(iso);
   const now = dayjs();
-  
+
   // If less than 24 hours ago, show relative time
-  if (now.diff(date, 'hour') < 24) {
+  if (Math.abs(now.diff(date, 'hour')) < 24) {
     return date.fromNow();
   }
-  
+
   // Otherwise show formatted date
   // Format: "MMM D, HH:mm"
   const tz = normalizeTimeZone(timeZone);
+  const d = date.toDate();
   try {
-     return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    }).format(new Date(iso));
+    }).format(d);
   } catch {
     return date.format('MMM D, HH:mm');
   }
