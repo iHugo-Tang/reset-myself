@@ -40,7 +40,7 @@ export default async function TimelinePage() {
 
   const [eventsData, stats, todayItems] = await Promise.all([
     getTimelineEventsInfinite(env, 20),
-    getTimelineStats(env, 90, { offsetMinutes: timeSettings.offsetMinutes }),
+    getTimelineStats(env, 370, { offsetMinutes: timeSettings.offsetMinutes }),
     getTodayStatus(env, { offsetMinutes: timeSettings.offsetMinutes }),
   ]);
 

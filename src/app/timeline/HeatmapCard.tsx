@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import { TimelineHeatmapDay } from '@/db/goals';
 import {
   addDaysUtc,
@@ -6,14 +9,13 @@ import {
   weekDayIndex,
 } from '@/utils/time';
 
-const HEATMAP_DAYS = 105;
 const heatmapColors = ['#0b1017', '#123040', '#15516f', '#1c77a0', '#2bb4d9'];
 const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const normalizeHeatmap = (
   heatmap: TimelineHeatmapDay[] | undefined,
   offsetMinutes: number,
-  days = HEATMAP_DAYS
+  days: number
 ) => {
   const byDate = new Map<string, number>();
   for (const entry of heatmap ?? []) {
@@ -43,15 +45,48 @@ export function HeatmapCard({
   heatmap: TimelineHeatmapDay[];
   offsetMinutes: number;
 }) {
-  const data = normalizeHeatmap(heatmap, offsetMinutes);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [numWeeks, setNumWeeks] = useState(15);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateWidth = () => {
+      if (!containerRef.current) return;
+      const width = containerRef.current.offsetWidth;
+      // p-5 = 20px padding left/right. Total 40px.
+      // Available width for content = width - 40.
+      const contentWidth = width - 40;
+      
+      // Col width = 14px + 4px gap = 18px
+      // Formula: 18n - 4 <= contentWidth => n <= (contentWidth + 4) / 18
+      const cols = Math.floor((contentWidth + 4) / 18);
+      setNumWeeks(Math.max(1, cols));
+    };
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(containerRef.current);
+
+    // Initial check
+    updateWidth();
+
+    return () => observer.disconnect();
+  }, []);
+
+  const daysToShow = numWeeks * 7;
+  const data = normalizeHeatmap(heatmap, offsetMinutes, daysToShow);
+  const todayKey = toDateKey(Date.now(), offsetMinutes);
   const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
 
   if (!(heatmap?.length ?? 0)) {
     return (
-      <div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
+      <div
+        ref={containerRef}
+        className="rounded-3xl border border-slate-900/70 bg-linear-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-5 shadow-[0_18px_80px_rgba(0,0,0,0.45)]"
+      >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-100">
-            Heatmap for the last {HEATMAP_DAYS} days
+            Heatmap for the last {numWeeks} weeks
           </p>
           <span className="text-xs text-slate-500">No data yet</span>
         </div>
@@ -97,10 +132,13 @@ export function HeatmapCard({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-900/70 bg-[#0b1017] p-4 shadow-[0_12px_45px_rgba(0,0,0,0.45)]">
+    <div
+      ref={containerRef}
+      className="rounded-3xl border border-slate-900/70 bg-linear-to-br from-[#0d1520] via-[#0f1b2a] to-[#0c121a] p-5 shadow-[0_18px_80px_rgba(0,0,0,0.45)]"
+    >
       <div className="flex flex-col gap-2 leading-tight">
         <span className="text-sm font-semibold text-slate-100">
-          Heatmap for the last {Math.ceil(HEATMAP_DAYS / 7)} weeks
+          Heatmap for the last {numWeeks} weeks
         </span>
         <span className="text-xs text-slate-500">
           Color shows completions for the day
@@ -119,6 +157,16 @@ export function HeatmapCard({
                   return (
                     <div
                       key={`empty-${colIdx}-${rowIdx}`}
+                      className="h-[14px] w-[14px] rounded-[4px] bg-transparent"
+                      aria-hidden
+                    />
+                  );
+                }
+
+                if (cell.date > todayKey) {
+                  return (
+                    <div
+                      key={cell.date}
                       className="h-[14px] w-[14px] rounded-[4px] bg-transparent"
                       aria-hidden
                     />
@@ -155,4 +203,3 @@ export function HeatmapCard({
     </div>
   );
 }
-
