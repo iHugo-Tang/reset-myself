@@ -2,12 +2,19 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createGoal, getDashboardData } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { resolveRequestTimeSettings } from '@/utils/time';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const data = await getDashboardData(getEnv(), 90);
+    const time = resolveRequestTimeSettings({
+      cookies: req.cookies,
+      cookieHeader: req.headers.get('cookie'),
+    });
+    const data = await getDashboardData(getEnv(), 90, {
+      offsetMinutes: time.offsetMinutes,
+    });
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('GET /api/goals error', error);
@@ -30,6 +37,11 @@ export async function POST(req: NextRequest) {
   const icon = (formData.get('icon') || '').toString().trim();
   const color = (formData.get('color') || '').toString().trim();
 
+  const time = resolveRequestTimeSettings({
+    cookies: req.cookies,
+    cookieHeader: req.headers.get('cookie'),
+  });
+
   const redirect = (suffix: string) =>
     NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, req.url));
 
@@ -38,13 +50,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await createGoal(getEnv(), {
-      title,
-      description,
-      dailyTargetCount,
-      icon: icon || undefined,
-      color: color || undefined,
-    });
+    await createGoal(
+      getEnv(),
+      {
+        title,
+        description,
+        dailyTargetCount,
+        icon: icon || undefined,
+        color: color || undefined,
+      },
+      { offsetMinutes: time.offsetMinutes }
+    );
     return redirect('');
   } catch (error) {
     console.error('POST /api/goals error', error);

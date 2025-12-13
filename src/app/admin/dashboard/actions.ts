@@ -25,8 +25,14 @@ export const createGoalAction = async (formData: FormData): Promise<void> => {
       ? Math.floor(dailyTargetRaw)
       : 1;
 
+  const time = await getTimeSettings();
+
   try {
-    await createGoal(getEnv(), { title, description, dailyTargetCount });
+    await createGoal(
+      getEnv(),
+      { title, description, dailyTargetCount },
+      { offsetMinutes: time.offsetMinutes }
+    );
     revalidatePath('/admin/dashboard');
   } catch (error) {
     console.error('createGoalAction error', error);

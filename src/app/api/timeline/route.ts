@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTimelineEventsInfinite, getTimelineStats } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { resolveRequestTimeSettings } from '@/utils/time';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
@@ -20,7 +21,13 @@ export async function GET(request: NextRequest) {
     let stats = null;
     if (!cursor) {
       // Only fetch stats on initial load
-      stats = await getTimelineStats(getEnv(), 90);
+      const time = resolveRequestTimeSettings({
+        cookies: request.cookies,
+        cookieHeader: request.headers.get('cookie'),
+      });
+      stats = await getTimelineStats(getEnv(), 90, {
+        offsetMinutes: time.offsetMinutes,
+      });
     }
 
     return NextResponse.json({

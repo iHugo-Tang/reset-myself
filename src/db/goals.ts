@@ -132,7 +132,7 @@ const checkAndLogSummaryEvent = async (
   dateKey: string,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
 
   // Get all goals created on or before this date
@@ -522,7 +522,7 @@ export const getTimelineData = async (
   days = 91,
   _ctx?: TimeContext
 ): Promise<TimelineData> => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
   const goalIds = goalRows.map((g) => g.id);
@@ -781,7 +781,7 @@ export const backfillDailySummaries = async (
   env: EnvWithD1,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
 
   const earliestGoal = await db
@@ -836,7 +836,7 @@ export const getDashboardData = async (
   days = 90,
   _ctx?: TimeContext
 ): Promise<GoalWithStats[]> => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
 
@@ -880,9 +880,10 @@ export const createGoal = async (
     dailyTargetCount: number;
     icon?: string;
     color?: string;
-  }
+  },
+  _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const [inserted] = await db
     .insert(goals)
@@ -897,7 +898,7 @@ export const createGoal = async (
     })
     .returning();
 
-  const dateKey = toDateKey(Date.now(), 0);
+  const dateKey = toDateKey(Date.now(), offsetMinutes);
   await logTimelineEvent(env, {
     date: dateKey,
     type: 'goal_created',
@@ -981,9 +982,10 @@ export const recordGoalCompletion = async (
   date?: string,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
-  const targetDate = (date?.trim?.() ?? '') || toDateKey(Date.now(), 0);
+  const targetDate =
+    (date?.trim?.() ?? '') || toDateKey(Date.now(), offsetMinutes);
   const [goal] = await db
     .select()
     .from(goals)
@@ -1056,12 +1058,12 @@ export const createTimelineNote = async (
   date?: string,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const trimmed = content.trim();
   if (!trimmed) throw new Error('content_required');
 
-  const targetDate = date?.trim() || toDateKey(Date.now(), 0);
+  const targetDate = date?.trim() || toDateKey(Date.now(), offsetMinutes);
   const [inserted] = await db
     .insert(timelineNotes)
     .values({
@@ -1100,7 +1102,7 @@ export const deleteGoal = async (
   goalId: number,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const [goal] = await db
     .select()
@@ -1109,7 +1111,7 @@ export const deleteGoal = async (
     .limit(1);
 
   if (goal) {
-    const dateKey = toDateKey(Date.now(), 0);
+    const dateKey = toDateKey(Date.now(), offsetMinutes);
     await logTimelineEvent(env, {
       date: dateKey,
       type: 'goal_deleted',
@@ -1206,7 +1208,7 @@ export const getTimelineStats = async (
   days = 91,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const goalRows = await db.select().from(goals).orderBy(desc(goals.createdAt));
   const goalIds = goalRows.map((g) => g.id);
@@ -1276,7 +1278,7 @@ export const getTimelineStats = async (
 };
 
 export const getTodayStatus = async (env: EnvWithD1, _ctx?: TimeContext) => {
-  const offsetMinutes = 0;
+  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
   const todayKey = toDateKey(
     startOfDayUtcMs(Date.now(), offsetMinutes),

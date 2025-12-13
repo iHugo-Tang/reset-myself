@@ -2,6 +2,7 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
 import { deleteGoal, updateGoal } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
+import { resolveRequestTimeSettings } from '@/utils/time';
 
 const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
@@ -30,7 +31,11 @@ const handleDelete = async (
   }
 
   try {
-    await deleteGoal(getEnv(), goalId);
+    const time = resolveRequestTimeSettings({
+      cookies: request.cookies,
+      cookieHeader: request.headers.get('cookie'),
+    });
+    await deleteGoal(getEnv(), goalId, { offsetMinutes: time.offsetMinutes });
     if (wantsJson) {
       return NextResponse.json({ success: true });
     }
