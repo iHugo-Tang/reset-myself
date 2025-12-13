@@ -267,7 +267,15 @@ const computeStreak = (
   let streak = 0;
   let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
 
-  // Streak days: walk backward from today until a day without completion (user time zone based)
+  // Streak days: if today has no completion yet, start from yesterday so we preserve the
+  // last completed streak while the current day is still in progress (user time zone based).
+  const todayKey = toDateKey(cursorUtc, offsetMinutes);
+  const todayCount = completionDates.get(todayKey) ?? 0;
+  if (todayCount <= 0) {
+    cursorUtc = addDaysUtc(cursorUtc, -1);
+  }
+
+  // Walk backward from the chosen cursor until a day without completion.
   while (true) {
     const key = toDateKey(cursorUtc, offsetMinutes);
     const count = completionDates.get(key) ?? 0;
@@ -291,15 +299,20 @@ const computeTimelineStreak = (
   let streak = 0;
   let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
 
-  while (true) {
-    const key = toDateKey(cursorUtc, offsetMinutes);
+  const isAllCompletedOnUtcDay = (utcMs: number) => {
+    const key = toDateKey(utcMs, offsetMinutes);
     const dateMap = byDate.get(key);
-
-    const allCompleted = goalsList.every(
+    return goalsList.every(
       (goal) => (dateMap?.get(goal.id) ?? 0) >= goal.dailyTargetCount
     );
+  };
 
-    if (!allCompleted) break;
+  if (!isAllCompletedOnUtcDay(cursorUtc)) {
+    cursorUtc = addDaysUtc(cursorUtc, -1);
+  }
+
+  while (true) {
+    if (!isAllCompletedOnUtcDay(cursorUtc)) break;
 
     streak += 1;
     cursorUtc = addDaysUtc(cursorUtc, -1);

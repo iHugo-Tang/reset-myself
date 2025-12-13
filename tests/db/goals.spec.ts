@@ -227,6 +227,21 @@ describe('db/goals', () => {
     teardown();
   });
 
+  it('computes goal streak from yesterday when today has no completion', async () => {
+    await setup();
+    const goal = await createGoal(env, { title: 'Meditate', dailyTargetCount: 1 });
+
+    await recordGoalCompletion(env, goal.id, 2, '2024-02-10');
+    await recordGoalCompletion(env, goal.id, 1, '2024-02-09');
+
+    const data = await getDashboardData(env, 3, { offsetMinutes: 0 });
+    expect(data).toHaveLength(1);
+    expect(data[0].streak).toBe(2);
+    expect(data[0].totalCompletedDays).toBe(2);
+    expect(data[0].heatmap.map((h) => h.count)).toEqual([1, 2, 0]);
+    teardown();
+  });
+
   it('builds timeline data with summaries, legacy notes, and sorted events', async () => {
     const db = await setup();
     const goalA = await createGoal(env, {
@@ -342,6 +357,16 @@ describe('db/goals', () => {
     const timeline = await getTimelineData(env, 1, { offsetMinutes: 0 });
     expect(timeline.streak).toBe(1);
     expect(timeline.days[0].date).toBe(todayKey);
+    teardown();
+  });
+
+  it('computes timeline streak from yesterday when today is incomplete (no summaries)', async () => {
+    await setup();
+    const goal = await createGoal(env, { title: 'Duo', dailyTargetCount: 1 });
+    await recordGoalCompletion(env, goal.id, 1, '2024-02-10');
+
+    const timeline = await getTimelineData(env, 2, { offsetMinutes: 0 });
+    expect(timeline.streak).toBe(1);
     teardown();
   });
 

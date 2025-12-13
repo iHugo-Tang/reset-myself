@@ -83,7 +83,7 @@ export default async function TimelinePage() {
               href="/admin/dashboard"
               className="rounded-2xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-sm font-semibold text-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900"
             >
-              Dashboard
+              Admin
             </Link>
           </div>
         </header>

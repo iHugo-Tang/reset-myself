@@ -67,6 +67,47 @@ describe('API routes', () => {
     dispose();
   });
 
+  it('GET /api/goals/[id] returns a goal or errors', async () => {
+    const { env, dispose } = await createTestEnv();
+    await mockCloudflare(env);
+    const goal = await createGoal(env, { title: 'ById', dailyTargetCount: 1 });
+
+    const { GET } = await import('@/app/api/goals/[id]/route');
+
+    const missingServer = createRouteTester(GET, { id: '0' });
+    const missingRes = await missingServer.request
+      .get('/api/goals/0')
+      .expect(400);
+    expect(missingRes.body.message).toBe('missing_goal_id');
+    await missingServer.close();
+
+    const notFoundServer = createRouteTester(GET, { id: '999999' });
+    const notFoundRes = await notFoundServer.request
+      .get('/api/goals/999999')
+      .expect(404);
+    expect(notFoundRes.body.message).toBe('goal_not_found');
+    await notFoundServer.close();
+
+    const okServer = createRouteTester(GET, { id: String(goal.id) });
+    const okRes = await okServer.request.get(`/api/goals/${goal.id}`).expect(200);
+    expect(okRes.body.success).toBe(true);
+    expect(okRes.body.data.id).toBe(goal.id);
+    await okServer.close();
+
+    const goalsModule = await import('@/db/goals');
+    vi.spyOn(goalsModule, 'getDashboardData').mockRejectedValueOnce(
+      new Error('boom')
+    );
+    const errorServer = createRouteTester(GET, { id: String(goal.id) });
+    const errorRes = await errorServer.request
+      .get(`/api/goals/${goal.id}`)
+      .expect(500);
+    expect(errorRes.body.success).toBe(false);
+    await errorServer.close();
+
+    dispose();
+  });
+
   it('POST /api/goals validates input and redirects', async () => {
     const { env, dispose } = await createTestEnv();
     await mockCloudflare(env);

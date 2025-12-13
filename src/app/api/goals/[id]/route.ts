@@ -1,6 +1,6 @@
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
-import { deleteGoal, updateGoal } from '@/db/goals';
+import { deleteGoal, getDashboardData, updateGoal } from '@/db/goals';
 import type { EnvWithD1 } from '@/db/client';
 import { resolveRequestTimeSettings } from '@/utils/time';
 
@@ -8,6 +8,44 @@ const getEnv = () => getCloudflareContext().env as EnvWithD1;
 
 const redirectToDashboard = (request: NextRequest, suffix: string) =>
   NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, request.url));
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const goalId = Number(id);
+  if (!goalId) {
+    return NextResponse.json(
+      { success: false, message: 'missing_goal_id' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const time = resolveRequestTimeSettings({
+      cookies: request.cookies,
+      cookieHeader: request.headers.get('cookie'),
+    });
+    const goals = await getDashboardData(getEnv(), 90, {
+      offsetMinutes: time.offsetMinutes,
+    });
+    const goal = goals.find((g) => g.id === goalId);
+    if (!goal) {
+      return NextResponse.json(
+        { success: false, message: 'goal_not_found' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ success: true, data: goal });
+  } catch (error) {
+    console.error('GET /api/goals/[id] error', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch goal' },
+      { status: 500 }
+    );
+  }
+}
 
 const handleDelete = async (
   request: NextRequest,

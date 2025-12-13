@@ -26,16 +26,41 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const title = (formData.get('title') || '').toString().trim();
-  const description = (formData.get('description') || '').toString().trim();
-  const dailyTargetRaw = Number(formData.get('dailyTargetCount') ?? 1);
+  const contentType = req.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+
+  let title = '';
+  let description = '';
+  let dailyTargetRaw = 1;
+  let icon = '';
+  let color = '';
+
+  if (isJson) {
+    const json = (await req.json()) as {
+      title?: string;
+      description?: string;
+      dailyTargetCount?: number | string;
+      icon?: string;
+      color?: string;
+    };
+    title = (json.title || '').trim();
+    description = (json.description || '').trim();
+    dailyTargetRaw = Number(json.dailyTargetCount ?? 1);
+    icon = (json.icon || '').trim();
+    color = (json.color || '').trim();
+  } else {
+    const formData = await req.formData();
+    title = (formData.get('title') || '').toString().trim();
+    description = (formData.get('description') || '').toString().trim();
+    dailyTargetRaw = Number(formData.get('dailyTargetCount') ?? 1);
+    icon = (formData.get('icon') || '').toString().trim();
+    color = (formData.get('color') || '').toString().trim();
+  }
+
   const dailyTargetCount =
     Number.isFinite(dailyTargetRaw) && dailyTargetRaw > 0
       ? Math.floor(dailyTargetRaw)
       : 1;
-  const icon = (formData.get('icon') || '').toString().trim();
-  const color = (formData.get('color') || '').toString().trim();
 
   const time = resolveRequestTimeSettings({
     cookies: req.cookies,
@@ -46,7 +71,12 @@ export async function POST(req: NextRequest) {
     NextResponse.redirect(new URL(`/admin/dashboard${suffix}`, req.url));
 
   if (!title) {
-    return redirect('?error=title_required');
+    return isJson
+      ? NextResponse.json(
+          { success: false, error: 'title_required' },
+          { status: 400 }
+        )
+      : redirect('?error=title_required');
   }
 
   try {
@@ -61,9 +91,14 @@ export async function POST(req: NextRequest) {
       },
       { offsetMinutes: time.offsetMinutes }
     );
-    return redirect('');
+    return isJson ? NextResponse.json({ success: true }) : redirect('');
   } catch (error) {
     console.error('POST /api/goals error', error);
-    return redirect('?error=create_failed');
+    return isJson
+      ? NextResponse.json(
+          { success: false, error: 'create_failed' },
+          { status: 500 }
+        )
+      : redirect('?error=create_failed');
   }
 }
