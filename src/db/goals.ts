@@ -166,6 +166,24 @@ const checkAndLogSummaryEvent = async (
     completionMap.set(c.goalId, (completionMap.get(c.goalId) ?? 0) + c.count);
   }
 
+  let completedGoalsCount = 0;
+  for (const g of activeGoals) {
+    if ((completionMap.get(g.id) ?? 0) >= g.dailyTargetCount) {
+      completedGoalsCount += 1;
+    }
+  }
+  const totalGoals = activeGoals.length;
+  const successRate = totalGoals > 0 ? completedGoalsCount / totalGoals : 0;
+
+  await upsertDailySummaries(env, [
+    {
+      date: dateKey,
+      totalGoals,
+      completedGoals: completedGoalsCount,
+      successRate,
+    },
+  ]);
+
   const items = activeGoals.map((g) => ({
     goalId: g.id,
     title: g.title,
@@ -1244,12 +1262,7 @@ export const getTimelineStats = async (
     successRate: row.successRate,
   }));
 
-  let streak =
-    summaryData.length > 0
-      ? computeSummaryStreak(summaryData, offsetMinutes)
-      : goalRows.length
-        ? computeTimelineStreak(goalRows, byDate, offsetMinutes)
-        : 0;
+  let streak = computeSummaryStreak(summaryData, offsetMinutes);
 
   if (summaryData.length > 0) {
     const todayKey = toDateKey(

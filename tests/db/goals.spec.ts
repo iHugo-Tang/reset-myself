@@ -540,4 +540,40 @@ describe('db/goals', () => {
 
     teardown();
   });
+
+  it('updates daily_summaries on goal completion', async () => {
+    const db = await setup();
+    const goal = await createGoal(env, { title: 'DS', dailyTargetCount: 2 });
+
+    // Initial check - no summary
+    let summaries = await db
+      .select()
+      .from(dailySummaries)
+      .where(eq(dailySummaries.date, '2024-02-11'));
+    expect(summaries).toHaveLength(0);
+
+    // Complete once (partial)
+    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+    summaries = await db
+      .select()
+      .from(dailySummaries)
+      .where(eq(dailySummaries.date, '2024-02-11'));
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].completedGoals).toBe(0);
+    expect(summaries[0].totalGoals).toBe(1);
+    expect(summaries[0].successRate).toBe(0);
+
+    // Complete twice (full)
+    await recordGoalCompletion(env, goal.id, 1, '2024-02-11');
+    summaries = await db
+      .select()
+      .from(dailySummaries)
+      .where(eq(dailySummaries.date, '2024-02-11'));
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].completedGoals).toBe(1);
+    expect(summaries[0].totalGoals).toBe(1);
+    expect(summaries[0].successRate).toBe(1);
+
+    teardown();
+  });
 });

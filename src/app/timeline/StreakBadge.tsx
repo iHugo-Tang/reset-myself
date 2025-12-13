@@ -59,7 +59,7 @@ export function StreakBadge({ streak }: { streak: number }) {
           </span>
           <span className="text-lg font-bold tabular-nums leading-tight">
             {streak}{' '}
-            <span className="text-sm font-normal opacity-80">days</span>
+            <span className="text-sm font-normal opacity-80">{streak === 1 ? 'day' : 'days'}</span>
           </span>
         </div>
       </div>
