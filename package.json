@@ -27,7 +27,8 @@
     "drizzle:push": "wrangler d1 migrations apply reset_myself --remote",
     "drizzle:seed": "tsx scripts/seed.ts",
     "drizzle:seed:remote": "tsx scripts/seed.ts --remote",
-    "drizzle:reset": "tsx scripts/reset-db.ts"
+    "drizzle:reset": "tsx scripts/reset-db.ts",
+    "db:sync": "tsx scripts/sync-prod-to-local.ts"
   },
   "dependencies": {
     "@cloudflare/next-on-pages": "^1.13.16",
