@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Ellipsis } from 'lucide-react';
 
 type Props = {
   noteId: number;
@@ -49,7 +50,7 @@ export function NoteActions({ noteId }: Props) {
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition hover:bg-slate-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-600 [&::-webkit-details-marker]:hidden"
           aria-label="More actions"
         >
-          <span className="text-xl leading-none">...</span>
+          <Ellipsis className="h-4 w-4" />
         </summary>
         <div className="absolute right-0 z-10 mt-2 w-32 overflow-hidden rounded-xl border border-slate-800 bg-[#0b1017] text-sm text-slate-200 shadow-xl shadow-black/40">
           <button
