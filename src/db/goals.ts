@@ -1179,7 +1179,7 @@ export const getTimelineEventsInfinite = async (
     ])
   );
 
-  let query = db
+  const baseQuery = db
     .select()
     .from(timelineEvents)
     .orderBy(
@@ -1189,6 +1189,7 @@ export const getTimelineEventsInfinite = async (
     )
     .limit(limit + 1);
 
+  let cursorCondition: Parameters<(typeof baseQuery)['where']>[0] | undefined;
   if (cursor) {
     try {
       const [cDate, cCreatedAt, cIdStr] = Buffer.from(cursor, 'base64')
@@ -1197,7 +1198,7 @@ export const getTimelineEventsInfinite = async (
       const cId = Number(cIdStr);
 
       if (cDate && cCreatedAt && !isNaN(cId)) {
-        const cursorCondition = or(
+        cursorCondition = or(
           lt(timelineEvents.date, cDate),
           and(
             eq(timelineEvents.date, cDate),
@@ -1209,15 +1210,13 @@ export const getTimelineEventsInfinite = async (
             lt(timelineEvents.id, cId)
           )
         );
-        if (cursorCondition) {
-          query = query.where(cursorCondition);
-        }
       }
     } catch (e) {
       console.warn('Invalid cursor', cursor, e);
     }
   }
 
+  const query = cursorCondition ? baseQuery.where(cursorCondition) : baseQuery;
   const rows = await query;
   const hasMore = rows.length > limit;
   const slicedRows = hasMore ? rows.slice(0, limit) : rows;
