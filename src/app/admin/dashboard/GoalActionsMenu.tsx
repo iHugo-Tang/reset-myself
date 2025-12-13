@@ -77,7 +77,7 @@ export function GoalActionsMenu({ goal, onEdit, onRetroactiveCheckIn }: Props) {
       {isOpen ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-[1000] mt-2 w-48 overflow-hidden rounded-xl border border-slate-800 bg-[#0c121a] p-1 shadow-2xl ring-1 ring-white/5"
+          className="absolute right-0 top-full z-1000 mt-2 w-48 overflow-hidden rounded-xl border border-slate-800 bg-[#0c121a] p-1 shadow-2xl ring-1 ring-white/5"
         >
           <button
             type="button"
