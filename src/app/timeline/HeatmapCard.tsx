@@ -55,7 +55,7 @@ export function HeatmapCard({
       // p-5 = 20px padding left/right. Total 40px.
       // Available width for content = width - 40.
       const contentWidth = width - 40;
-      
+
       // Col width = 14px + 4px gap = 18px
       // Formula: 18n - 4 <= contentWidth => n <= (contentWidth + 4) / 18
       const cols = Math.floor((contentWidth + 4) / 18);
@@ -137,9 +137,6 @@ export function HeatmapCard({
       <div className="flex flex-col gap-2 leading-tight">
         <span className="text-sm font-semibold text-slate-100">
           Heatmap for the last {numWeeks} weeks
-        </span>
-        <span className="text-xs text-slate-500">
-          Color shows completions for the day
         </span>
       </div>
 

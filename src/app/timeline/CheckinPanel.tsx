@@ -33,11 +33,8 @@ export function CheckinPanel({ day, today }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-col leading-tight">
               <h2 className="text-lg font-semibold text-slate-50">
-                {dateLabel}
+                {dateLabel} · {weekdayLabel}
               </h2>
-              <p className="text-sm font-medium text-slate-400">
-                {weekdayLabel}
-              </p>
             </div>
           </div>
         </div>
@@ -60,10 +57,22 @@ export function CheckinPanel({ day, today }: Props) {
               className="flex items-center gap-3 rounded-2xl border border-slate-900/80 bg-[#111a24] px-4 py-3"
             >
               <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-base font-semibold text-slate-50">
                     {item.title}
                   </p>
+
+                  <CompleteButton
+                    goalId={item.goalId}
+                    date={today}
+                    isCompleted={completed}
+                    variant="compact"
+                    labels={{
+                      idle: 'Check in',
+                      loading: 'Working...',
+                      completed: 'Done',
+                    }}
+                  />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
                   <span className="font-semibold text-slate-100">
@@ -81,24 +90,12 @@ export function CheckinPanel({ day, today }: Props) {
                 </div>
                 <div className="relative h-1.5 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className={`h-full transition-[width] duration-500 ${
-                      completed ? 'bg-emerald-400' : 'bg-sky-400/80'
-                    }`}
+                    className={`h-full transition-[width] duration-500 ${completed ? 'bg-emerald-400' : 'bg-sky-400/80'
+                      }`}
                     style={{ width: `${completionPercent}%` }}
                   />
                 </div>
               </div>
-              <CompleteButton
-                goalId={item.goalId}
-                date={today}
-                isCompleted={completed}
-                variant="compact"
-                labels={{
-                  idle: 'Check in',
-                  loading: 'Working...',
-                  completed: 'Done',
-                }}
-              />
             </div>
           );
         })}
