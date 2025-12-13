@@ -81,7 +81,7 @@ export default function TimelineFeed({
                     ) : event.type === 'goal_created' || event.type === 'goal_deleted' ? (
                         <GoalLifecycleCard event={event} timeZone={timeZone} />
                     ) : event.type === 'summary' ? (
-                        <GoalsEventCard event={event} />
+                        <GoalsEventCard event={event} timeZone={timeZone} />
                     ) : null}
                 </div>
             ))}

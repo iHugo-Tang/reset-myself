@@ -1,10 +1,6 @@
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { TimelineGoalLifecycleEvent } from '@/db/goals';
-import { formatTimeInTimeZone } from '@/utils/time';
-
-function formatTimeLabel(iso: string, timeZone: string) {
-  return formatTimeInTimeZone(iso, timeZone, 'en-US');
-}
+import { formatEventTime } from '@/utils/time';
 
 export function GoalLifecycleCard({
   event,
@@ -13,7 +9,7 @@ export function GoalLifecycleCard({
   event: TimelineGoalLifecycleEvent;
   timeZone: string;
 }) {
-  const timeLabel = formatTimeLabel(event.createdAt, timeZone);
+  const timeLabel = formatEventTime(event.createdAt, timeZone);
   const isCreated = event.type === 'goal_created';
   const Icon = isCreated ? PlusCircle : Trash2;
   const badgeClass = isCreated
@@ -29,13 +25,13 @@ export function GoalLifecycleCard({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-semibold text-slate-50">{event.title}</p>
+          <span className="text-xs text-slate-500">{timeLabel}</span>
           <span
             className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${badgeClass}`}
           >
             {label}
           </span>
         </div>
-        <span className="text-sm text-slate-500">{timeLabel}</span>
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(utc);
+dayjs.extend(relativeTime);
 
 const TZ_COOKIE = 'tz';
 const TZ_OFFSET_COOKIE = 'tz_offset';
@@ -195,6 +197,32 @@ export const formatTimeInTimeZone = (
     /* c8 ignore start */
     return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     /* c8 ignore end */
+  }
+};
+
+export const formatEventTime = (iso: string, timeZone: string) => {
+  const date = dayjs(iso);
+  const now = dayjs();
+  
+  // If less than 24 hours ago, show relative time
+  if (now.diff(date, 'hour') < 24) {
+    return date.fromNow();
+  }
+  
+  // Otherwise show formatted date
+  // Format: "MMM D, HH:mm"
+  const tz = normalizeTimeZone(timeZone);
+  try {
+     return new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(iso));
+  } catch {
+    return date.format('MMM D, HH:mm');
   }
 };
 
