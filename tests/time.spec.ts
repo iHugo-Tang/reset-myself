@@ -10,9 +10,7 @@ import {
   normalizeOffset,
   normalizeTimeZone,
   readOffsetFromCookieHeader,
-  readOffsetFromCookies,
   readTimeZoneFromCookieHeader,
-  readTimeZoneFromCookies,
   resolveRequestTimeSettings,
   startOfDayUtcMs,
   toDateKey,
@@ -79,13 +77,15 @@ describe('utils/time', () => {
 
     const originalFormatter = Intl.DateTimeFormat;
     let first = true;
-    Intl.DateTimeFormat = function (...args: any[]) {
+    Intl.DateTimeFormat = (function (
+      ...args: ConstructorParameters<typeof Intl.DateTimeFormat>
+    ) {
       if (first) {
         first = false;
         throw new Error('format fail');
       }
-      return new (originalFormatter as any)(...args);
-    } as any;
+      return new originalFormatter(...args);
+    } as unknown) as typeof Intl.DateTimeFormat;
     expect(formatWeekdayLabel('2024-01-05', 'UTC')).toBe('Fri');
     expect(formatTimeInTimeZone('2024-01-05T03:04:00Z', 'UTC')).toBe('03:04');
     Intl.DateTimeFormat = originalFormatter;

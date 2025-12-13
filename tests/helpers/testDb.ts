@@ -16,9 +16,24 @@ const makeMeta = (): D1Meta & Record<string, unknown> => ({
   changes: 0,
 });
 
+type SqlJsStatement = {
+  bind: (values: unknown[]) => void;
+  step: () => boolean;
+  get: () => unknown[];
+  getColumnNames: () => string[];
+  free: () => void;
+};
+
+type SqlJsDatabase = {
+  prepare: (sql: string) => SqlJsStatement;
+  exec: (sql: string) => void;
+  export: () => Uint8Array;
+  close: () => void;
+};
+
 class SqlJsPreparedStatement implements D1PreparedStatement {
   constructor(
-    private readonly db: any,
+    private readonly db: SqlJsDatabase,
     private readonly sql: string,
     private readonly bound?: unknown[]
   ) {}
@@ -29,7 +44,7 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
 
   private prepare() {
     const stmt = this.db.prepare(this.sql);
-    if (this.bound) stmt.bind(this.bound as any);
+    if (this.bound) stmt.bind(this.bound);
     return stmt;
   }
 
@@ -54,7 +69,7 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
     stmt.free();
 
     if (options?.columnNames) {
-      return [columns, ...(rows as any[])] as [string[], ...T[]];
+      return [columns, ...rows] as [string[], ...T[]];
     }
     return rows;
   }
@@ -86,7 +101,7 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
 }
 
 class SqlJsD1Database implements D1Database {
-  constructor(private readonly db: any) {}
+  constructor(private readonly db: SqlJsDatabase) {}
 
   async batch<T = unknown>(
     statements: D1PreparedStatement[]
@@ -137,7 +152,7 @@ export const createTestEnv = async () => {
       ),
   });
 
-  const sqlite = new SQL.Database();
+  const sqlite: SqlJsDatabase = new SQL.Database();
   sqlite.exec('PRAGMA foreign_keys = ON;');
   for (const sql of migrationSql) sqlite.exec(sql);
 

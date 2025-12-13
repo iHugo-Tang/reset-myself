@@ -8,7 +8,7 @@ import { timelineEvents } from '../../drizzle/schema';
 import { createTestEnv } from '../helpers/testDb';
 import type { EnvWithD1 } from '@/db/client';
 import { toDateKey } from '@/utils/time';
-import { desc, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 describe('db/timeline_dedup', () => {
   let env: EnvWithD1;

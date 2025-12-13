@@ -12,7 +12,7 @@ import { createTestEnv } from '../helpers/testDb';
 // inside the mock factory can lead to `ReferenceError: env is not defined`.
 // Use a module-scoped variable instead.
 let mockedCloudflareEnv: EnvWithD1 | undefined;
-let mockedUserId = 'user-a';
+const mockedUserId = 'user-a';
 
 vi.mock('@opennextjs/cloudflare', () => ({
   getCloudflareContext: () => ({ env: mockedCloudflareEnv }),

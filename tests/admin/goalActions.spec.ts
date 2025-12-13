@@ -1,9 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runGoalAction } from '@/app/admin/dashboard/goalActions';
+import type { GoalWithStats } from '@/db/goals';
+
+const makeGoal = (id: number): GoalWithStats => ({
+  id,
+  userId: 'user_1',
+  title: 'Test goal',
+  description: null,
+  dailyTargetCount: 1,
+  icon: 'Target',
+  color: '#10b981',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+  streak: 0,
+  totalCompletedDays: 0,
+  heatmap: [],
+});
 
 describe('runGoalAction', () => {
   it('uses onEdit callback when provided', () => {
-    const goal = { id: 123 } as any;
+    const goal = makeGoal(123);
     const onEdit = vi.fn();
     const routerPush = vi.fn();
 
@@ -19,7 +35,7 @@ describe('runGoalAction', () => {
   });
 
   it('routes to edit page when no onEdit callback', () => {
-    const goal = { id: 123 } as any;
+    const goal = makeGoal(123);
     const routerPush = vi.fn();
 
     runGoalAction({
@@ -32,7 +48,7 @@ describe('runGoalAction', () => {
   });
 
   it('uses onRetroactiveCheckIn callback when provided', () => {
-    const goal = { id: 123 } as any;
+    const goal = makeGoal(123);
     const onRetroactiveCheckIn = vi.fn();
     const routerPush = vi.fn();
 
@@ -48,7 +64,7 @@ describe('runGoalAction', () => {
   });
 
   it('routes to check-in page when no onRetroactiveCheckIn callback', () => {
-    const goal = { id: 123 } as any;
+    const goal = makeGoal(123);
     const routerPush = vi.fn();
 
     runGoalAction({
@@ -62,4 +78,3 @@ describe('runGoalAction', () => {
     );
   });
 });
-

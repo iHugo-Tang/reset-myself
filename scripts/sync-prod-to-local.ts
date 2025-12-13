@@ -12,6 +12,8 @@ const TABLES = [
   'daily_summaries',
 ];
 
+type Row = Record<string, unknown>;
+
 function runCommand(command: string, args: string[], captureOutput = false) {
   const result = spawnSync(command, args, {
     stdio: captureOutput ? 'pipe' : 'inherit',
@@ -26,6 +28,9 @@ function runCommand(command: string, args: string[], captureOutput = false) {
 
   return result.stdout;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 function fetchTableData(table: string) {
   console.log(`Fetching ${table} from remote...`);
@@ -45,12 +50,15 @@ function fetchTableData(table: string) {
     }
 
     const cleanJson = jsonOutput.substring(startIndex, endIndex + 1);
-    const parsed = JSON.parse(cleanJson);
+    const parsed: unknown = JSON.parse(cleanJson);
     
     // Wrangler returns an array of result objects. Usually the first query result is at index 0.
     // Structure: [ { results: [...], success: true, ... } ]
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].results) {
-      return parsed[0].results as any[];
+    if (Array.isArray(parsed) && parsed.length > 0 && isRecord(parsed[0])) {
+      const results = parsed[0].results;
+      if (Array.isArray(results)) {
+        return results.filter(isRecord);
+      }
     }
     return [];
   } catch (e) {
@@ -60,7 +68,7 @@ function fetchTableData(table: string) {
   }
 }
 
-function formatValue(val: any): string {
+function formatValue(val: unknown): string {
   if (val === null || val === undefined) return 'NULL';
   if (typeof val === 'number') return String(val);
   if (typeof val === 'boolean') return val ? '1' : '0';
@@ -72,7 +80,7 @@ function formatValue(val: any): string {
   return `'${String(val).replace(/'/g, "''")}'`;
 }
 
-function generateInsertSql(table: string, rows: any[]) {
+function generateInsertSql(table: string, rows: Row[]) {
   if (rows.length === 0) return '';
   
   // Get all unique keys from all rows to ensure we handle missing columns in some rows (unlikely in SQL but good practice)
@@ -133,4 +141,3 @@ main().catch(e => {
   console.error(e);
   process.exit(1);
 });
-

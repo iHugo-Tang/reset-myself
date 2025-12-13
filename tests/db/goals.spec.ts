@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   backfillDailySummaries,
@@ -378,12 +378,12 @@ describe('db/goals', () => {
     teardown();
   });
 
-  it('falls back to timeline streak when no summaries exist', async () => {
-    const db = await setup();
-    const goal = await createGoal(env, userA, {
-      title: 'Solo',
-      dailyTargetCount: 1,
-    });
+	  it('falls back to timeline streak when no summaries exist', async () => {
+	    await setup();
+	    const goal = await createGoal(env, userA, {
+	      title: 'Solo',
+	      dailyTargetCount: 1,
+	    });
     const todayKey = toDateKey(Date.now(), 0);
     await recordGoalCompletion(env, userA, goal.id, 1, todayKey);
 
@@ -539,12 +539,12 @@ describe('db/goals', () => {
     teardown();
   });
 
-  it('supports infinite scrolling with cursors', async () => {
-    const db = await setup();
-    // Create events to span multiple pages
-    // 1. Goal Created
-    const goal = await createGoal(env, userA, {
-      title: 'Scroll Goal',
+	  it('supports infinite scrolling with cursors', async () => {
+	    await setup();
+	    // Create events to span multiple pages
+	    // 1. Goal Created
+	    const goal = await createGoal(env, userA, {
+	      title: 'Scroll Goal',
       dailyTargetCount: 1,
     });
     // 2. Note

@@ -1276,10 +1276,7 @@ export const getTimelineEventsInfinite = async (
     ])
   );
 
-  const whereTypeProbe = db.select().from(timelineEvents);
-  let cursorCondition:
-    | Parameters<(typeof whereTypeProbe)['where']>[0]
-    | undefined;
+  let cursorCondition: ReturnType<typeof or> | undefined;
   if (cursor) {
     try {
       const [cDate, cCreatedAt, cIdStr] = Buffer.from(cursor, 'base64')

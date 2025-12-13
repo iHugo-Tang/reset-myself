@@ -3,22 +3,24 @@ import { NextRequest } from 'next/server';
 // Test helper: keep handler type loose to support Next route handler variations.
 // These handlers' ctx types differ per route segment (e.g. { id: string }), and
 // strict typing here creates noisy TS errors in tests without adding much value.
-type Handler = (
-  req: NextRequest,
-  ctx: { params: Promise<any> }
-) => Response | Promise<Response>;
+type RouteHandler<P extends Record<string, string> = Record<string, string>> =
+  | ((req: NextRequest) => Response | Promise<Response>)
+  | ((
+      req: NextRequest,
+      ctx: { params: Promise<P> }
+    ) => Response | Promise<Response>);
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-class RequestBuilder {
+class RequestBuilder<P extends Record<string, string> = Record<string, string>> {
   private headers = new Headers();
   private payload: unknown;
 
   constructor(
-    private readonly handler: Handler,
+    private readonly handler: RouteHandler<P>,
     private readonly method: Method,
     private readonly url: string,
-    private readonly params?: Record<string, string>
+    private readonly params?: P
   ) {}
 
   set(name: string, value: string) {
@@ -72,12 +74,24 @@ class RequestBuilder {
       headers: Object.fromEntries(this.headers.entries()),
       body: this.buildBody(),
     };
-    // The NextRequest type expects standard RequestInit; in some environments
-    // (e.g. when Cloudflare fetch types are present) this can become incompatible.
-    const request = new NextRequest(`http://localhost${this.url}`, init as any);
-    const response = await this.handler(request, {
-      params: Promise.resolve(this.params ?? {}),
-    });
+    const request = new NextRequest(
+      `http://localhost${this.url}`,
+      init as unknown as RequestInit
+    );
+
+    const ctx = { params: Promise.resolve(this.params ?? ({} as P)) };
+    const response = await (
+      this.handler.length >= 2
+        ? (
+            this.handler as (
+              req: NextRequest,
+              ctx: { params: Promise<P> }
+            ) => Response | Promise<Response>
+          )(request, ctx)
+        : (this.handler as (req: NextRequest) => Response | Promise<Response>)(
+            request
+          )
+    );
     const buffer = Buffer.from(await response.arrayBuffer());
     const text = buffer.toString('utf8');
     const headers = Object.fromEntries(response.headers.entries());
@@ -119,17 +133,20 @@ class RequestBuilder {
   }
 }
 
-export const createRouteTester = (
-  handler: any,
-  params?: Record<string, string>
+export const createRouteTester = <
+  P extends Record<string, string> = Record<string, string>,
+>(
+  handler: RouteHandler<P>,
+  params?: P
 ) => {
   return {
     request: {
-      get: (url: string) => new RequestBuilder(handler, 'GET', url, params),
-      post: (url: string) => new RequestBuilder(handler, 'POST', url, params),
-      patch: (url: string) => new RequestBuilder(handler, 'PATCH', url, params),
+      get: (url: string) => new RequestBuilder<P>(handler, 'GET', url, params),
+      post: (url: string) => new RequestBuilder<P>(handler, 'POST', url, params),
+      patch: (url: string) =>
+        new RequestBuilder<P>(handler, 'PATCH', url, params),
       delete: (url: string) =>
-        new RequestBuilder(handler, 'DELETE', url, params),
+        new RequestBuilder<P>(handler, 'DELETE', url, params),
     },
     close: async () => {},
   };
