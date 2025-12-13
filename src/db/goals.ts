@@ -434,7 +434,10 @@ const buildDateRangeKeys = (startKey: string, endKey: string): string[] => {
 
 const processTimelineRows = (
   rows: TimelineEventRow[],
-  goalMetaMap: Map<number, { title: string; icon: string; color: string; target: number }>,
+  goalMetaMap: Map<
+    number,
+    { title: string; icon: string; color: string; target: number }
+  >,
   byDate: Map<string, Map<number, number>>
 ): TimelineEvent[] => {
   const parseNumber = (value: unknown, fallback: number) => {
@@ -445,6 +448,7 @@ const processTimelineRows = (
     typeof value === 'string' ? value : fallback;
 
   const events: TimelineEvent[] = [];
+  const seenCheckins = new Set<string>();
 
   for (const row of rows) {
     const payload = (row.payload ?? {}) as Record<string, unknown>;
@@ -467,6 +471,11 @@ const processTimelineRows = (
         ? Number(goalIdRaw)
         : null;
       if (goalId === null) continue;
+
+      const checkinKey = `${row.date}:${goalId}`;
+      if (seenCheckins.has(checkinKey)) continue;
+      seenCheckins.add(checkinKey);
+
       const meta = goalMetaMap.get(goalId);
       const delta = parseNumber(payload.delta, 0);
       const newCount = parseNumber(
@@ -610,9 +619,10 @@ export const getTimelineData = async (
 
   const noteIdsFromEvents = new Set<number>();
   const eventsByDate = new Map<string, TimelineEvent[]>();
+  const seenCheckins = new Set<string>();
 
   // RESTORING ORIGINAL LOOP FOR SAFETY in getTimelineData
-    
+
   const pushEventOriginal = (date: string, event: TimelineEvent) => {
     const list = eventsByDate.get(date) ?? [];
     list.push(event);
@@ -648,6 +658,11 @@ export const getTimelineData = async (
         ? Number(goalIdRaw)
         : null;
       if (goalId === null) continue;
+
+      const checkinKey = `${row.date}:${goalId}`;
+      if (seenCheckins.has(checkinKey)) continue;
+      seenCheckins.add(checkinKey);
+
       const meta = goalMetaMap.get(goalId);
       const delta = parseNumber(payload.delta, 0);
       const newCount = parseNumber(
@@ -1028,6 +1043,18 @@ export const recordGoalCompletion = async (
   }
 
   const newCount = (existing?.count ?? 0) + count;
+
+  // Cleanup existing checkin events for this goal and date to keep only the latest one
+  await db
+    .delete(timelineEvents)
+    .where(
+      and(
+        eq(timelineEvents.date, targetDate),
+        eq(timelineEvents.type, 'checkin'),
+        eq(timelineEvents.goalId, goalId)
+      )
+    );
+
   await logTimelineEvent(env, {
     date: targetDate,
     type: 'checkin',
@@ -1171,7 +1198,7 @@ export const getTimelineEventsInfinite = async (
               eq(timelineEvents.createdAt, cCreatedAt),
               lt(timelineEvents.id, cId)
             )
-            )
+          )
         ) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
       }
     } catch (e) {
@@ -1229,8 +1256,8 @@ export const getTimelineStats = async (
     .from(dailySummaries)
     .orderBy(desc(dailySummaries.date))
     .limit(days);
-    
-  const summaryData: DailySummaryData[] = summaryDataRaw.map(row => ({
+
+  const summaryData: DailySummaryData[] = summaryDataRaw.map((row) => ({
     date: row.date,
     totalGoals: row.totalGoals,
     completedGoals: row.completedGoals,
@@ -1243,9 +1270,9 @@ export const getTimelineStats = async (
       : goalRows.length
         ? computeTimelineStreak(goalRows, byDate, offsetMinutes)
         : 0;
-        
+
   const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
-  
+
   return { streak, heatmap };
 };
 
@@ -1257,7 +1284,10 @@ export const getTodayStatus = async (env: EnvWithD1, ctx?: TimeContext) => {
     offsetMinutes
   );
 
-  const goalsList = await db.select().from(goals).orderBy(desc(goals.createdAt));
+  const goalsList = await db
+    .select()
+    .from(goals)
+    .orderBy(desc(goals.createdAt));
   const activeGoals = goalsList.filter((g) => {
     const createdKey = toDateKey(g.createdAt, offsetMinutes);
     return createdKey && createdKey <= todayKey;
