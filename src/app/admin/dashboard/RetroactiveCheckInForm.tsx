@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { GoalWithStats } from '@/db/goals';
+import type { OkResponse } from '@/api/types';
+import { getErrorMessage, readJson } from '@/utils/api';
 
 type Props = {
   goal: GoalWithStats;
@@ -60,10 +62,8 @@ export function RetroactiveCheckInForm({ goal, onSuccess, onCancel }: Props) {
             });
 
             if (!res.ok) {
-              const json = (await res.json().catch(() => null)) as
-                | { error?: string; message?: string }
-                | null;
-              setError(json?.message ?? json?.error ?? 'Check-in failed');
+              const json = await readJson<OkResponse>(res);
+              setError(getErrorMessage(json) ?? 'Check-in failed');
               return;
             }
 

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { OkResponse } from '@/api/types';
+import { getErrorMessage, readJson } from '@/utils/api';
 
 type ButtonVariant = 'default' | 'compact';
 type ButtonLabels = {
@@ -48,13 +50,10 @@ export function CompleteButton({
       });
 
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
+        const json = await readJson<OkResponse>(res);
+        const errorMessage = getErrorMessage(json);
         setError(
-          json?.error
-            ? `Failed: ${json.error}`
-            : 'Could not record. Please try again soon.'
+          errorMessage ? `Failed: ${errorMessage}` : 'Could not record. Please try again soon.'
         );
         return;
       }

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { TimelineEvent } from '@/db/goals';
+import type { TimelineResponse } from '@/api/types';
 import { NoteCard } from './NoteCard';
 import { CheckinEventCard } from './CheckinEventCard';
 import { GoalLifecycleCard } from './GoalLifecycleCard';
 import { GoalsEventCard } from './GoalsEventCard';
 import { Loader2 } from 'lucide-react';
+import { readJson } from '@/utils/api';
 
 type TimelineFeedProps = {
     initialEvents: TimelineEvent[];
@@ -35,14 +37,8 @@ export default function TimelineFeed({
         try {
             const res = await fetch(`/api/timeline?cursor=${encodeURIComponent(nextCursor)}`);
             if (!res.ok) throw new Error('Failed to fetch');
-            const json = (await res.json()) as {
-                success: boolean;
-                data: {
-                    events: TimelineEvent[];
-                    nextCursor: string | null;
-                };
-            };
-            if (json.success) {
+            const json = await readJson<TimelineResponse>(res);
+            if (json?.success) {
                 setEvents((prev) => [...prev, ...json.data.events]);
                 setNextCursor(json.data.nextCursor);
             }
@@ -106,4 +102,3 @@ export default function TimelineFeed({
         </div>
     );
 }
-

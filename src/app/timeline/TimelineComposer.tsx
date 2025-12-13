@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserRound } from 'lucide-react';
 import { calculateEffectiveLength } from '@/utils/text';
+import type { TimelineNoteCreateResponse } from '@/api/types';
+import { getErrorMessage, readJson } from '@/utils/api';
 
 const MAX_LEN = 280;
 
@@ -33,10 +35,10 @@ export default function TimelineComposer() {
       });
 
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        setError(json?.message ?? 'Unable to save. Please try again soon.');
+        const json = await readJson<TimelineNoteCreateResponse>(res);
+        setError(
+          getErrorMessage(json) ?? 'Unable to save. Please try again soon.'
+        );
         return;
       }
 

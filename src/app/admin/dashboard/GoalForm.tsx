@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
 import type { GoalWithStats } from '@/db/goals';
+import type { ApiResponseNoData, GoalsMutationResponse } from '@/api/types';
+import { getErrorMessage, readJson } from '@/utils/api';
 import {
   COLOR_OPTIONS,
   DEFAULT_COLOR,
@@ -46,7 +48,7 @@ export function GoalForm({ initialData, onSuccess, onCancel }: Props) {
     };
 
     startTransition(async () => {
-      let res;
+      let res: Response;
       if (isEditMode && initialData) {
         res = await fetch(`/api/goals/${initialData.id}`, {
           method: 'PATCH',
@@ -62,8 +64,11 @@ export function GoalForm({ initialData, onSuccess, onCancel }: Props) {
       }
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError(json.message || `Failed to ${isEditMode ? 'update' : 'create'} goal`);
+        const json = await readJson<GoalsMutationResponse>(res);
+        setError(
+          getErrorMessage(json) ??
+            `Failed to ${isEditMode ? 'update' : 'create'} goal`
+        );
         return;
       }
 
@@ -81,7 +86,8 @@ export function GoalForm({ initialData, onSuccess, onCancel }: Props) {
       });
 
       if (!res.ok) {
-        setError('Failed to delete goal');
+        const json = await readJson<ApiResponseNoData>(res);
+        setError(getErrorMessage(json) ?? 'Failed to delete goal');
         return;
       }
 

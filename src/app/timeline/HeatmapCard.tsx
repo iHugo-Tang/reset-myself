@@ -102,12 +102,12 @@ export function HeatmapCard({
 
   const offset = cells[0]?.weekday ?? 0;
   const padded: ((typeof cells)[number] | null)[] = [
-    ...Array(offset).fill(null),
+    ...Array<null>(offset).fill(null),
     ...cells,
   ];
   const remainder = padded.length % 7;
   if (remainder !== 0) {
-    padded.push(...Array(7 - remainder).fill(null));
+    padded.push(...Array<null>(7 - remainder).fill(null));
   }
 
   const columns: ((typeof cells)[number] | null)[][] = [];

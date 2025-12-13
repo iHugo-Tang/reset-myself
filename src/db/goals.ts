@@ -1197,20 +1197,21 @@ export const getTimelineEventsInfinite = async (
       const cId = Number(cIdStr);
 
       if (cDate && cCreatedAt && !isNaN(cId)) {
-        query = query.where(
-          or(
-            lt(timelineEvents.date, cDate),
-            and(
-              eq(timelineEvents.date, cDate),
-              lt(timelineEvents.createdAt, cCreatedAt)
-            ),
-            and(
-              eq(timelineEvents.date, cDate),
-              eq(timelineEvents.createdAt, cCreatedAt),
-              lt(timelineEvents.id, cId)
-            )
+        const cursorCondition = or(
+          lt(timelineEvents.date, cDate),
+          and(
+            eq(timelineEvents.date, cDate),
+            lt(timelineEvents.createdAt, cCreatedAt)
+          ),
+          and(
+            eq(timelineEvents.date, cDate),
+            eq(timelineEvents.createdAt, cCreatedAt),
+            lt(timelineEvents.id, cId)
           )
-        ) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        );
+        if (cursorCondition) {
+          query = query.where(cursorCondition);
+        }
       }
     } catch (e) {
       console.warn('Invalid cursor', cursor, e);

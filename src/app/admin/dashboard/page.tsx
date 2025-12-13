@@ -3,6 +3,8 @@ import { cookies, headers } from 'next/headers';
 import type { GoalWithStats } from '@/db/goals';
 import { AdminDashboard } from './AdminDashboard';
 import { resolveRequestTimeSettings } from '@/utils/time';
+import type { GoalsListResponse } from '@/api/types';
+import { readJson } from '@/utils/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +30,8 @@ const fetchDashboardData = async (
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
     if (!res.ok) return [];
-    const json = (await res.json()) as { data?: GoalWithStats[] };
-    return json.data ?? [];
+    const json = await readJson<GoalsListResponse>(res);
+    return json?.success ? json.data : [];
   } catch (error) {
     console.error('fetchDashboardData error', error);
     return [];

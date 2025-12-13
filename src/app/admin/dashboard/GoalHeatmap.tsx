@@ -95,7 +95,7 @@ export function GoalHeatmap({ heatmap }: { heatmap: HeatmapDay[] }) {
   // So if days is multiple of 7, it starts on Sunday.
   // However, let's keep the safety padding logic just in case.
   const padded: ((typeof cells)[number] | null)[] = [
-    ...Array(offset).fill(null),
+    ...Array<null>(offset).fill(null),
     ...cells,
   ];
 

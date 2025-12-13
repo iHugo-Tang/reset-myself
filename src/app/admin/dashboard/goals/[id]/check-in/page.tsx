@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { CheckInGoalClient } from '../CheckInGoalClient';
 import { resolveRequestTimeSettings } from '@/utils/time';
 import type { GoalWithStats } from '@/db/goals';
+import type { GoalDetailResponse } from '@/api/types';
+import { readJson } from '@/utils/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,8 +34,8 @@ const fetchGoal = async (
       }
     );
     if (!res.ok) return null;
-    const json = (await res.json()) as { data?: GoalWithStats };
-    return json.data ?? null;
+    const json = await readJson<GoalDetailResponse>(res);
+    return json?.success ? json.data : null;
   } catch (error) {
     console.error('fetchGoal error', error);
     return null;
@@ -62,4 +64,3 @@ export default async function CheckInGoalPage({
 
   return <CheckInGoalClient goal={goal} />;
 }
-

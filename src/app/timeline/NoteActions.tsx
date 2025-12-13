@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Ellipsis } from 'lucide-react';
+import type { TimelineNoteDeleteResponse } from '@/api/types';
+import { getErrorMessage, readJson } from '@/utils/api';
 
 type Props = {
   noteId: number;
@@ -27,10 +29,8 @@ export function NoteActions({ noteId }: Props) {
       });
 
       if (!res.ok) {
-        const json = (await res.json().catch(() => null)) as {
-          message?: string;
-        } | null;
-        setError(json?.message ?? 'Delete failed. Please try again soon.');
+        const json = await readJson<TimelineNoteDeleteResponse>(res);
+        setError(getErrorMessage(json) ?? 'Delete failed. Please try again soon.');
         return;
       }
 
