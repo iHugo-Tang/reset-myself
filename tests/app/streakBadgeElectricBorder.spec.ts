@@ -9,6 +9,7 @@ describe('Streak badge electric border integration', () => {
       "import ElectricBorder from '@/components/ElectricBorder'"
     );
     expect(file).toContain('data-testid="streak-electric"');
+    expect(file).toContain('mode={electricMode}');
   });
 
   it('removes the legacy global electric-border CSS', async () => {

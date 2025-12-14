@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Flame } from 'lucide-react';
 
 import ElectricBorder from '@/components/ElectricBorder';
@@ -105,6 +105,22 @@ const streakStyles: Record<number, StreakVisual> = {
 export function StreakBadge({ streak }: { streak: number }) {
   const tier = getStreakTier(streak);
   const styles = streakStyles[tier];
+  const [electricMode, setElectricMode] = useState<'full' | 'lite'>('lite');
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(min-width: 768px)');
+    const update = () => setElectricMode(media.matches ? 'full' : 'lite');
+    update();
+
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
 
   const palette = streak > 0 ? styles.electric : null;
   const electricIntensity = palette ? clamp(Math.log10(streak + 1) / Math.log10(365), 0.15, 1) : 0;
@@ -148,6 +164,7 @@ export function StreakBadge({ streak }: { streak: number }) {
         <ElectricBorder
           data-testid="streak-electric"
           className="block w-full rounded-2xl"
+          mode={electricMode}
           color={electricProps.color}
           speed={electricProps.speed}
           chaos={electricProps.chaos}
