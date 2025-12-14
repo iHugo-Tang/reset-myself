@@ -7,9 +7,15 @@ import { signOut } from './auth/actions';
 
 type Props = {
   className?: string;
+  label?: string;
+  pendingLabel?: string;
 };
 
-export const LogoutButton = ({ className }: Props) => {
+export const LogoutButton = ({
+  className,
+  label = 'Logout',
+  pendingLabel = 'Logging out...',
+}: Props) => {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -31,9 +37,14 @@ export const LogoutButton = ({ className }: Props) => {
       type="button"
       onClick={handleClick}
       disabled={pending}
-      className={`rounded bg-gray-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-600 ${className ?? ''}`}
+      className={[
+        'rounded-2xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-sm font-semibold text-slate-100',
+        'shadow-[0_10px_40px_rgba(0,0,0,0.35)] transition hover:border-slate-700 hover:bg-slate-900',
+        'disabled:cursor-not-allowed disabled:opacity-70',
+        className ?? '',
+      ].join(' ')}
     >
-      {pending ? 'Signing out...' : 'Sign out'}
+      {pending ? pendingLabel : label}
     </button>
   );
 };

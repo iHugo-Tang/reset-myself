@@ -9,6 +9,7 @@ import TimelineComposer from '@/app/timeline/TimelineComposer';
 import { StreakBadge } from '@/app/timeline/StreakBadge';
 import { HeatmapCard } from '@/app/timeline/HeatmapCard';
 import TimelineFeed from '@/app/timeline/TimelineFeed';
+import { LogoutButton } from '@/app/LogoutButton';
 
 import {
   getTimelineEventsInfinite,
@@ -88,6 +89,7 @@ export default async function TimelinePage() {
             >
               Admin
             </Link>
+            <LogoutButton />
           </div>
         </header>
 
