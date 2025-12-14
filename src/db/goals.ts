@@ -145,31 +145,46 @@ const checkAndLogSummaryEvent = async (
     .from(goals)
     .where(eq(goals.userId, userId))
     .orderBy(desc(goals.createdAt));
-  const activeGoals = goalsList.filter((g) => {
-    const createdKey = toDateKey(g.createdAt, offsetMinutes);
-    return createdKey && createdKey <= dateKey;
-  });
-
-  if (activeGoals.length === 0) return;
+  const goalIds = goalsList.map((g) => g.id);
 
   // Get completions for this date
-  const completions = await db
-    .select()
-    .from(goalCompletions)
-    .where(
-      and(
-        eq(goalCompletions.userId, userId),
-        eq(goalCompletions.date, dateKey),
-        inArray(
-          goalCompletions.goalId,
-          activeGoals.map((g) => g.id)
-        )
-      )
-    );
+  const completions =
+    goalIds.length > 0
+      ? await db
+          .select()
+          .from(goalCompletions)
+          .where(
+            and(
+              eq(goalCompletions.userId, userId),
+              eq(goalCompletions.date, dateKey),
+              inArray(goalCompletions.goalId, goalIds)
+            )
+          )
+      : [];
 
   const completionMap = new Map<number, number>();
   for (const c of completions) {
     completionMap.set(c.goalId, (completionMap.get(c.goalId) ?? 0) + c.count);
+  }
+
+  const activeGoals = goalsList;
+
+  if (activeGoals.length === 0) {
+    await db
+      .delete(dailySummaries)
+      .where(
+        and(eq(dailySummaries.userId, userId), eq(dailySummaries.date, dateKey))
+      );
+    await db
+      .delete(timelineEvents)
+      .where(
+        and(
+          eq(timelineEvents.userId, userId),
+          eq(timelineEvents.date, dateKey),
+          eq(timelineEvents.type, 'summary')
+        )
+      );
+    return;
   }
 
   let completedGoalsCount = 0;
@@ -180,15 +195,6 @@ const checkAndLogSummaryEvent = async (
   }
   const totalGoals = activeGoals.length;
   const successRate = totalGoals > 0 ? completedGoalsCount / totalGoals : 0;
-
-  await upsertDailySummaries(env, userId, [
-    {
-      date: dateKey,
-      totalGoals,
-      completedGoals: completedGoalsCount,
-      successRate,
-    },
-  ]);
 
   const items = activeGoals.map((g) => ({
     goalId: g.id,
@@ -203,11 +209,21 @@ const checkAndLogSummaryEvent = async (
     (g) => (completionMap.get(g.id) ?? 0) >= g.dailyTargetCount
   );
 
-  // If strictly only logging when all completed (for real-time):
-  if (!allGoalsCompleted) {
-    // If we want to remove existing summary if it became incomplete, we should do that.
-    // For now, let's just delete any existing summary for this date to ensure correctness
-    // (e.g. if user unchecked an item, the "all completed" summary is no longer valid).
+  if (allGoalsCompleted) {
+    await upsertDailySummaries(env, userId, [
+      {
+        date: dateKey,
+        totalGoals,
+        completedGoals: completedGoalsCount,
+        successRate,
+      },
+    ]);
+  } else {
+    await db
+      .delete(dailySummaries)
+      .where(
+        and(eq(dailySummaries.userId, userId), eq(dailySummaries.date, dateKey))
+      );
     await db
       .delete(timelineEvents)
       .where(
@@ -303,36 +319,6 @@ const computeStreak = (
   return streak;
 };
 
-const computeTimelineStreak = (
-  goalsList: Goal[],
-  byDate: Map<string, Map<number, number>>,
-  offsetMinutes: number
-): number => {
-  let streak = 0;
-  let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
-
-  const isAllCompletedOnUtcDay = (utcMs: number) => {
-    const key = toDateKey(utcMs, offsetMinutes);
-    const dateMap = byDate.get(key);
-    return goalsList.every(
-      (goal) => (dateMap?.get(goal.id) ?? 0) >= goal.dailyTargetCount
-    );
-  };
-
-  if (!isAllCompletedOnUtcDay(cursorUtc)) {
-    cursorUtc = addDaysUtc(cursorUtc, -1);
-  }
-
-  while (true) {
-    if (!isAllCompletedOnUtcDay(cursorUtc)) break;
-
-    streak += 1;
-    cursorUtc = addDaysUtc(cursorUtc, -1);
-  }
-
-  return streak;
-};
-
 type DailySummaryData = {
   date: string;
   totalGoals: number;
@@ -417,30 +403,34 @@ const buildTimelineHeatmap = (
 
 const computeSummaryStreak = (
   summaries: DailySummaryData[],
-  offsetMinutes: number
+  offsetMinutes: number,
+  todayCompleted: boolean
 ): number => {
-  const summaryMap = new Map<string, DailySummaryData>();
-  for (const summary of summaries) {
-    summaryMap.set(summary.date, summary);
+  const completedDates = new Set(
+    summaries
+      .filter(
+        (summary) =>
+          summary.totalGoals > 0 && summary.completedGoals >= summary.totalGoals
+      )
+      .map((summary) => summary.date)
+  );
+
+  let cursorUtc = startOfDayUtcMs(Date.now(), offsetMinutes);
+  const todayKey = toDateKey(cursorUtc, offsetMinutes);
+  if (!todayCompleted) {
+    cursorUtc = addDaysUtc(cursorUtc, -1);
   }
 
   let streak = 0;
-  let cursorUtc = addDaysUtc(startOfDayUtcMs(Date.now(), offsetMinutes), -1);
-
   while (true) {
     const key = toDateKey(cursorUtc, offsetMinutes);
-    const summary = summaryMap.get(key);
-    if (!summary) break;
+    if (!key) break;
+    const isCompleted =
+      key === todayKey ? todayCompleted : completedDates.has(key);
+    if (!isCompleted) break;
 
-    if (
-      summary.totalGoals > 0 &&
-      summary.completedGoals >= summary.totalGoals
-    ) {
-      streak += 1;
-      cursorUtc = addDaysUtc(cursorUtc, -1);
-    } else {
-      break;
-    }
+    streak += 1;
+    cursorUtc = addDaysUtc(cursorUtc, -1);
   }
 
   return streak;
@@ -621,23 +611,22 @@ export const getTimelineData = async (
     offsetMinutes,
     startOfDayUtcMs(Date.now(), offsetMinutes)
   );
-  const pastDates = dates.filter((date) => date !== todayKey);
 
-  const computedSummaries = pastDates
+  const computedSummaries = dates
     .map((date) => computeDailySummary(date, goalRows, byDate, offsetMinutes))
     .filter((s): s is DailySummaryData => Boolean(s));
 
   await upsertDailySummaries(env, userId, computedSummaries);
 
   const storedSummaries =
-    pastDates.length > 0
+    dates.length > 0
       ? await db
           .select()
           .from(dailySummaries)
           .where(
             and(
               eq(dailySummaries.userId, userId),
-              inArray(dailySummaries.date, pastDates)
+              inArray(dailySummaries.date, dates)
             )
           )
       : [];
@@ -831,12 +820,21 @@ export const getTimelineData = async (
     );
   /* c8 ignore end */
 
-  const streak =
-    summaryData.length > 0
-      ? computeSummaryStreak(summaryData, offsetMinutes)
-      : goalRows.length
-        ? computeTimelineStreak(goalRows, byDate, offsetMinutes)
-        : 0;
+  const todaySummary = computeDailySummary(
+    todayKey,
+    goalRows,
+    byDate,
+    offsetMinutes
+  );
+  const todayAllCompleted =
+    !!todaySummary &&
+    todaySummary.totalGoals > 0 &&
+    todaySummary.completedGoals >= todaySummary.totalGoals;
+  const streak = computeSummaryStreak(
+    summaryData,
+    offsetMinutes,
+    todayAllCompleted
+  );
   const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
 
   return { days: daysData, streak, heatmap };
@@ -1383,28 +1381,25 @@ export const getTimelineStats = async (
     successRate: row.successRate,
   }));
 
-  let streak = computeSummaryStreak(summaryData, offsetMinutes);
-
-  if (summaryData.length > 0) {
-    const todayKey = toDateKey(
-      startOfDayUtcMs(Date.now(), offsetMinutes),
-      offsetMinutes
-    );
-    const todaySummary = computeDailySummary(
-      todayKey,
-      goalRows,
-      byDate,
-      offsetMinutes
-    );
-
-    if (
-      todaySummary &&
-      todaySummary.totalGoals > 0 &&
-      todaySummary.completedGoals >= todaySummary.totalGoals
-    ) {
-      streak += 1;
-    }
-  }
+  const todayKey = toDateKey(
+    startOfDayUtcMs(Date.now(), offsetMinutes),
+    offsetMinutes
+  );
+  const todaySummary = computeDailySummary(
+    todayKey,
+    goalRows,
+    byDate,
+    offsetMinutes
+  );
+  const todayAllCompleted =
+    !!todaySummary &&
+    todaySummary.totalGoals > 0 &&
+    todaySummary.completedGoals >= todaySummary.totalGoals;
+  const streak = computeSummaryStreak(
+    summaryData,
+    offsetMinutes,
+    todayAllCompleted
+  );
 
   const heatmap = buildTimelineHeatmap(byDate, days, offsetMinutes);
 

@@ -37,16 +37,17 @@ export default async function TimelinePage() {
     cookies: cookieStore,
     cookieHeader: headerList.get('cookie'),
   });
+  const offsetMinutes = timeSettings.offsetMinutes ?? 0;
 
   const env = getEnv();
 
   const [eventsData, stats, todayItems] = await Promise.all([
     getTimelineEventsInfinite(env, userId, 20),
-    getTimelineStats(env, userId, 370),
-    getTodayStatus(env, userId),
+    getTimelineStats(env, userId, 370, { offsetMinutes }),
+    getTodayStatus(env, userId, { offsetMinutes }),
   ]);
 
-  const todayKey = toDateKey(Date.now(), 0);
+  const todayKey = toDateKey(Date.now(), offsetMinutes);
 
   const todayDay: TimelineDay = {
     date: todayKey,
@@ -93,7 +94,7 @@ export default async function TimelinePage() {
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
           <div className="space-y-4 lg:order-2 lg:col-span-1">
             <StreakBadge streak={stats.streak} />
-            <HeatmapCard heatmap={stats.heatmap} />
+            <HeatmapCard heatmap={stats.heatmap} offsetMinutes={offsetMinutes} />
             {todayItems.length > 0 ? (
               <CheckinPanel day={todayDay} today={todayKey} />
             ) : null}

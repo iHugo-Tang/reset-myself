@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -75,9 +75,9 @@ describe('db/goals', () => {
       dailyTargetCount: 1,
     });
 
-    await expect(updateGoal(env, userA, goal.id, { title: '' })).rejects.toThrow(
-      'title_required'
-    );
+    await expect(
+      updateGoal(env, userA, goal.id, { title: '' })
+    ).rejects.toThrow('title_required');
     await expect(
       updateGoal(env, userA, goal.id, { dailyTargetCount: 0 })
     ).rejects.toThrow('daily_target_invalid');
@@ -329,6 +329,62 @@ describe('db/goals', () => {
     teardown();
   });
 
+  it('includes today when computing timeline streak with summaries', async () => {
+    const db = await setup();
+    const goal = await createGoal(env, userA, {
+      title: 'Chain',
+      dailyTargetCount: 1,
+    });
+
+    const msPerDay = 86_400_000;
+    const dateKeys = Array.from({ length: 5 }, (_, idx) =>
+      toDateKey(Date.now() - idx * msPerDay, 0)
+    ).filter((key): key is string => Boolean(key));
+
+    for (const key of dateKeys) {
+      await recordGoalCompletion(env, userA, goal.id, 1, key);
+    }
+
+    const summaries = await db
+      .select()
+      .from(dailySummaries)
+      .where(
+        and(
+          eq(dailySummaries.userId, userA),
+          inArray(dailySummaries.date, dateKeys)
+        )
+      );
+    expect(summaries).toHaveLength(dateKeys.length);
+    expect(summaries.map((row) => row.date).sort()).toEqual(
+      [...dateKeys].sort()
+    );
+
+    const timeline = await getTimelineData(env, userA, 5, { offsetMinutes: 0 });
+    expect(timeline.streak).toBe(5);
+    teardown();
+  });
+
+  it('computes 5-day streak without any completion today', async () => {
+    await setup();
+    const goal = await createGoal(env, userA, {
+      title: 'Chain',
+      dailyTargetCount: 1,
+    });
+
+    const msPerDay = 86_400_000;
+    const dateKeys = Array.from({ length: 5 }, (_, idx) =>
+      toDateKey(Date.now() - (idx + 1) * msPerDay, 0)
+    ).filter((key): key is string => Boolean(key));
+
+    for (const key of dateKeys) {
+      await recordGoalCompletion(env, userA, goal.id, 1, key);
+    }
+
+    const timeline = await getTimelineData(env, userA, 6, { offsetMinutes: 0 });
+    expect(timeline.streak).toBe(5);
+    teardown();
+  });
+
   it('adds multiple event types to timeline data including goal deletion and note events', async () => {
     const db = await setup();
     const goal = await createGoal(env, userA, {
@@ -378,12 +434,12 @@ describe('db/goals', () => {
     teardown();
   });
 
-	  it('falls back to timeline streak when no summaries exist', async () => {
-	    await setup();
-	    const goal = await createGoal(env, userA, {
-	      title: 'Solo',
-	      dailyTargetCount: 1,
-	    });
+  it('falls back to timeline streak when no summaries exist', async () => {
+    await setup();
+    const goal = await createGoal(env, userA, {
+      title: 'Solo',
+      dailyTargetCount: 1,
+    });
     const todayKey = toDateKey(Date.now(), 0);
     await recordGoalCompletion(env, userA, goal.id, 1, todayKey);
 
@@ -453,7 +509,9 @@ describe('db/goals', () => {
 
   it('returns zero when backfilling with no goals present', async () => {
     await setup();
-    const result = await backfillDailySummaries(env, userA, { offsetMinutes: 0 });
+    const result = await backfillDailySummaries(env, userA, {
+      offsetMinutes: 0,
+    });
     expect(result.upserted).toBe(0);
     teardown();
   });
@@ -539,12 +597,36 @@ describe('db/goals', () => {
     teardown();
   });
 
-	  it('supports infinite scrolling with cursors', async () => {
-	    await setup();
-	    // Create events to span multiple pages
-	    // 1. Goal Created
-	    const goal = await createGoal(env, userA, {
-	      title: 'Scroll Goal',
+  it('upserts daily summaries for today in getTimelineData', async () => {
+    const db = await setup();
+    await createGoal(env, userA, {
+      title: 'Today Summary',
+      dailyTargetCount: 1,
+    });
+    const todayKey = toDateKey(Date.now(), 0);
+
+    await getTimelineData(env, userA, 1, { offsetMinutes: 0 });
+
+    const summaries = await db
+      .select()
+      .from(dailySummaries)
+      .where(
+        and(eq(dailySummaries.userId, userA), eq(dailySummaries.date, todayKey))
+      );
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].totalGoals).toBe(1);
+    expect(summaries[0].completedGoals).toBe(0);
+    expect(summaries[0].successRate).toBe(0);
+
+    teardown();
+  });
+
+  it('supports infinite scrolling with cursors', async () => {
+    await setup();
+    // Create events to span multiple pages
+    // 1. Goal Created
+    const goal = await createGoal(env, userA, {
+      title: 'Scroll Goal',
       dailyTargetCount: 1,
     });
     // 2. Note
@@ -650,10 +732,7 @@ describe('db/goals', () => {
           eq(dailySummaries.date, '2024-02-11')
         )
       );
-    expect(summaries).toHaveLength(1);
-    expect(summaries[0].completedGoals).toBe(0);
-    expect(summaries[0].totalGoals).toBe(1);
-    expect(summaries[0].successRate).toBe(0);
+    expect(summaries).toHaveLength(0);
 
     // Complete twice (full)
     await recordGoalCompletion(env, userA, goal.id, 1, '2024-02-11');

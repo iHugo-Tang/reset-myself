@@ -2,46 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { TimelineHeatmapDay } from '@/db/goals';
-import {
-  addDaysUtc,
-  startOfDayUtcMs,
-  toDateKey,
-  weekDayIndex,
-} from '@/utils/time';
+import { toDateKey } from '@/utils/time';
+import { normalizeHeatmap } from '@/app/timeline/heatmap';
 
 const heatmapColors = ['#0b1017', '#123040', '#15516f', '#1c77a0', '#2bb4d9'];
 const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const normalizeHeatmap = (
-  heatmap: TimelineHeatmapDay[] | undefined,
-  offsetMinutes: number,
-  days: number
-) => {
-  const byDate = new Map<string, number>();
-  for (const entry of heatmap ?? []) {
-    byDate.set(entry.date, entry.count);
-  }
-
-  // Use the last day of the current week as the end, backfill `days` days to show a full week
-  const todayUtcStart = startOfDayUtcMs(Date.now(), offsetMinutes);
-  const todayKey = toDateKey(todayUtcStart, offsetMinutes);
-  const weekdayIdx = weekDayIndex(todayKey); // 0 = Sunday
-  const endOfWeekUtc = addDaysUtc(todayUtcStart, 6 - weekdayIdx);
-  const startUtc = addDaysUtc(endOfWeekUtc, -(days - 1));
-
-  const filled: TimelineHeatmapDay[] = [];
-  for (let i = 0; i < days; i++) {
-    const cursorUtc = addDaysUtc(startUtc, i);
-    const dateKey = toDateKey(cursorUtc, offsetMinutes);
-    filled.push({ date: dateKey, count: byDate.get(dateKey) ?? 0 });
-  }
-  return filled;
-};
-
 export function HeatmapCard({
   heatmap,
+  offsetMinutes = 0,
 }: {
   heatmap: TimelineHeatmapDay[];
+  offsetMinutes?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [numWeeks, setNumWeeks] = useState(15);
@@ -72,8 +44,8 @@ export function HeatmapCard({
   }, []);
 
   const daysToShow = numWeeks * 7;
-  const data = normalizeHeatmap(heatmap, 0, daysToShow);
-  const todayKey = toDateKey(Date.now(), 0);
+  const data = normalizeHeatmap(heatmap, offsetMinutes, daysToShow);
+  const todayKey = toDateKey(Date.now(), offsetMinutes);
   const maxCount = data.reduce((max, entry) => Math.max(max, entry.count), 0);
 
   if (!(heatmap?.length ?? 0)) {
