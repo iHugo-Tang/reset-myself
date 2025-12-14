@@ -76,7 +76,7 @@ export const stepFishSchool = ({
   const dt = clamp(dtSeconds, 0, 0.05);
 
   return fish.map((item) => {
-    let vx = item.vx;
+    const vx = item.vx;
     let vy = item.vy;
     let x = item.x + vx * dt * 60;
     let y = item.y + vy * dt * 60;

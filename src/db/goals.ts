@@ -136,7 +136,7 @@ const checkAndLogSummaryEvent = async (
   dateKey: string,
   _ctx?: TimeContext
 ) => {
-  const offsetMinutes = _ctx?.offsetMinutes ?? 0;
+  const _offsetMinutes = _ctx?.offsetMinutes ?? 0;
   const db = getDb(env);
 
   // Get all goals created on or before this date
